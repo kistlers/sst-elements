@@ -13,27 +13,23 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#ifndef _H_EMBER_PSPIN_PING_PONG
-#define _H_EMBER_PSPIN_PING_PONG
+#ifndef _H_EMBER_PSPIN_REDUCE
+#define _H_EMBER_PSPIN_REDUCE
 
 #include "mpi/embermpigen.h"
 
 namespace SST {
 namespace Ember {
 
-class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
+class EmberPspinReduceGenerator : public EmberMessagePassingGenerator {
    public:
-    SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinPingPongGenerator, "ember", "PspinPingPongMotif",
-                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin Ping-Pong Motif",
+    SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinReduceGenerator, "ember", "PspinReduceMotif",
+                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin Reduce Motif",
                                           SST::Ember::EmberGenerator)
 
     SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of data items per", "1"},
                             {"arg.verify", "Verify the data transfer", "false"},
-                            {"arg.iterations", "Sets the number of ping pong operations to perform", "1"},
-                            {"arg.rank2", "Sets the 2nd rank to pingpong with (0 is the 1st)", "1"},
-                            {"arg.blockingSend", "Sets the send mode", "1"},
-                            {"arg.blockingRecv", "Sets the recv mode", "1"},
-                            {"arg.waitall", "Sets the wait mode", "1"}, )
+                            {"arg.iterations", "Sets the number of ping pong operations to perform", "1"}, )
     SST_ELI_DOCUMENT_STATISTICS(
         {"time-Init", "Time spent in Init event", "ns", 0}, {"time-Finalize", "Time spent in Finalize event", "ns", 0},
         {"time-Rank", "Time spent in Rank event", "ns", 0}, {"time-Size", "Time spent in Size event", "ns", 0},
@@ -52,7 +48,7 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
         {"time-Commcreate", "Time spent in Commcreate event", "ns", 0}, )
 
    public:
-    EmberPspinPingPongGenerator(SST::ComponentId_t, Params& params);
+    EmberPspinReduceGenerator(SST::ComponentId_t, Params& params);
     bool generate(std::queue<EmberEvent*>& evQ);
 
    private:
@@ -68,10 +64,6 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     uint32_t m_loopIndex;
     uint32_t m_count;
 
-    int m_rank2;
-    bool m_blockingSend;
-    bool m_blockingRecv;
-    bool m_waitall;
     bool m_verify;
 };
 

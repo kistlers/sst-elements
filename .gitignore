@@ -3,6 +3,8 @@
 *.la
 *.pyc
 .*.swp
+.idea/
+.vscode/
 .libs/
 .deps/
 .dirstamp
