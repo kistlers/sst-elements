@@ -30,14 +30,14 @@ public:
         "ember",
         "PspinSendMotif",
         SST_ELI_ELEMENT_VERSION(1,0,0),
-        "Performs a Ping-Pong Motif",
+        "Performs a Pspin Send Motif",
         SST::Ember::EmberGenerator
     )
 
     SST_ELI_DOCUMENT_PARAMS(
-        {   "arg.messageSize",      "Sets the message size of the ping pong operation", "1024"},
-        {   "arg.iterations",       "Sets the number of ping pong operations to perform",   "1"},
-        {   "arg.rank2",        "Sets the 2nd rank to pingpong with (0 is the 1st)",    "1"},
+        {   "arg.elementCount",      "Sets the number of elements in the send operation", "1024"},
+        {   "arg.iterations",       "Sets the number of send operations to perform",   "1"},
+        {   "arg.rank2",        "Sets the 2nd rank to send to (0 is the 1st)",    "1"},
     )
     SST_ELI_DOCUMENT_STATISTICS(
         { "time-Init", "Time spent in Init event",          "ns",  0},
@@ -73,6 +73,7 @@ private:
     void*    m_sendBuf;
     void*    m_recvBuf;
 
+	uint32_t m_elementCount;
 	uint32_t m_messageSize;
 	uint32_t m_iterations;
     uint64_t m_startTime;
@@ -80,6 +81,7 @@ private:
     uint32_t m_loopIndex;
 
     int      m_rank2;
+    bool m_verify;
 };
 
 }
