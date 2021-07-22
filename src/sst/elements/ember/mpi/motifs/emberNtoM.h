@@ -14,8 +14,8 @@
 // distribution.
 
 
-#ifndef _H_EMBER_PING_PONG
-#define _H_EMBER_PING_PONG
+#ifndef _H_EMBER_N_TO_M
+#define _H_EMBER_N_TO_M
 
 #include "mpi/embermpigen.h"
 
