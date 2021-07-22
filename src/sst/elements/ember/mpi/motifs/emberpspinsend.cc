@@ -13,9 +13,8 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#include "emberpspinsend.h"
-
 #include <sst_config.h>
+#include "emberpspinsend.h"
 
 using namespace SST::Ember;
 
@@ -64,11 +63,13 @@ bool EmberPspinSendGenerator::generate(std::queue<EmberEvent*>& evQ) {
     }
 
     if (0 == rank()) {
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld);
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
+        enQ_send( evQ, m_sendBuf, m_messageSize, CHAR, m_rank2,
+                                                TAG, GroupWorld );
+        // enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
     } else if (m_rank2 == rank()) {
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_resp);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
+        enQ_recv( evQ, m_recvBuf, m_messageSize, CHAR, 0,
+                                                TAG, GroupWorld, &m_resp );
+        // enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
     }
 
     if (++m_loopIndex == m_iterations) {

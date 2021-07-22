@@ -35,7 +35,7 @@ public:
     )
 
     SST_ELI_DOCUMENT_PARAMS(
-        {   "arg.elementCount",      "Sets the number of elements in the send operation", "1024"},
+        {   "arg.elementCount",      "Sets the number of elements in the send operation", "112"},
         {   "arg.iterations",       "Sets the number of send operations to perform",   "1"},
         {   "arg.rank2",        "Sets the 2nd rank to send to (0 is the 1st)",    "1"},
     )
@@ -81,7 +81,7 @@ private:
     uint32_t m_loopIndex;
 
     int      m_rank2;
-    bool m_verify;
+    // bool    m_verify;
 };
 
 }
