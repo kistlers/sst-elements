@@ -13,47 +13,34 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#include "emberpspinpingpong.h"
-
 #include <sst_config.h>
+
+// sst_config must be at top
+
+#include "emberpspinpingpong.h"
 
 using namespace SST::Ember;
 
 #define TAG 0xDEADBEEF
 
 EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, Params& params)
-    : EmberMessagePassingGenerator(id, params, "PspinPingPong"),
-      m_loopIndex(0),
-      m_rank2(1),
-      m_blockingSend(true),
-      m_blockingRecv(true),
-      m_waitall(false) {
-    m_count = (uint32_t)params.find("arg.count", 1024);
+    : EmberMessagePassingGenerator(id, params, "PspinPingPong"), m_loopIndex(0), m_rank2(1) {
+    m_elementCount = (uint32_t)params.find("arg.elementCount", 112);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
 
-    m_blockingSend = (uint32_t)params.find("arg.blockingSend", true);
-    m_blockingRecv = (uint32_t)params.find("arg.blockingRecv", true);
-    m_waitall = (uint32_t)params.find("arg.waitall", false);
-
-    m_verify = params.find<bool>("arg.verify", true);
-
-    memSetBacked();
-    m_messageSize = m_count * sizeofDataType(INT);
+    m_messageSize = 64 + m_elementCount * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    for (int i = 0; i < m_count; i++) {
-        ((int*)m_sendBuf)[i] = 1000 * rank() + i;
-    }
+    // memSetBacked();
+    // for ( int i = 0; i < m_elementCount; i++ ) {
+    // ((int*)m_sendBuf + 64)[i] = rank();
+    // }
 }
 
 bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
-    if (0 != rank() && m_rank2 != rank()) {
-        return true;
-    }
-
-    if (m_loopIndex == m_iterations) {
+    if (m_loopIndex == m_iterations || !(0 == rank() || m_rank2 == rank())) {
         if (0 == rank()) {
             double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
 
@@ -65,15 +52,6 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
                 ", latency %.3f us. bandwidth %f GB/s\n",
                 getMotifName().c_str(), m_rank2, totalTime * 1000000.0, m_iterations, m_messageSize,
                 latency * 1000000.0, bandwidth / 1000000000.0);
-        }
-
-        if (m_verify) {
-                for (int i = 0; i < m_count; i++) {
-                    int should_be = rank() == 0 ? 1000 * m_rank2 + i  : i;
-                    if (should_be != ((int*)m_recvBuf)[i]) {
-                        printf("Error: Rank %d index %d failed. got=%d should_be=%d\n", rank(), i, ((int*)m_recvBuf)[i], should_be);
-                    }
-            }
         }
         return true;
     }
@@ -88,47 +66,11 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
     }
 
     if (0 == rank()) {
-        if (m_blockingSend) {
-            enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld);
-        } else {
-            enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_req);
-            if (m_waitall) {
-                enQ_waitall(evQ, 1, &m_req, (MessageResponse**)&m_resp);
-            } else {
-                enQ_wait(evQ, &m_req);
-            }
-        }
-        if (m_blockingRecv) {
-            enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
-        } else {
-            enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_req);
-            if (m_waitall) {
-                enQ_waitall(evQ, 1, &m_req, (MessageResponse**)&m_resp);
-            } else {
-                enQ_wait(evQ, &m_req);
-            }
-        }
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
     } else if (m_rank2 == rank()) {
-        if (m_blockingRecv) {
-            enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_resp);
-        } else {
-            enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_req);
-            if (m_waitall) {
-                enQ_waitall(evQ, 1, &m_req, (MessageResponse**)&m_resp);
-            } else {
-                enQ_wait(evQ, &m_req);
-            }
-        }
-        if (m_blockingSend) {
-            enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
-        } else {
-            enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_req);
-            if (m_waitall) {
-                enQ_waitall(evQ, 1, &m_req, (MessageResponse**)&m_resp);
-            } else {
-                enQ_wait(evQ, &m_req);
-            }
-        }
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_resp);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
     }
 
     if (++m_loopIndex == m_iterations) {

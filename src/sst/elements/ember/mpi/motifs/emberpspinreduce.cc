@@ -13,9 +13,11 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#include "emberpspinreduce.h"
-
 #include <sst_config.h>
+
+// sst_config must be at top
+
+#include "emberpspinreduce.h"
 
 using namespace SST::Ember;
 

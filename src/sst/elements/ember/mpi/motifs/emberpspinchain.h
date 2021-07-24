@@ -13,7 +13,8 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#pragma once
+#ifndef _H_EMBER_PSPIN_CHAIN
+#define _H_EMBER_PSPIN_CHAIN
 
 #include "mpi/embermpigen.h"
 
@@ -88,3 +89,5 @@ private:
 
 }
 }
+
+#endif

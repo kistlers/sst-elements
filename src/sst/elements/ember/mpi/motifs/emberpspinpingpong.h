@@ -24,16 +24,12 @@ namespace Ember {
 class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
    public:
     SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinPingPongGenerator, "ember", "PspinPingPongMotif",
-                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin Ping-Pong Motif",
+                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin PingPong Motif",
                                           SST::Ember::EmberGenerator)
 
-    SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of data items per", "1"},
-                            {"arg.verify", "Verify the data transfer", "false"},
-                            {"arg.iterations", "Sets the number of ping pong operations to perform", "1"},
-                            {"arg.rank2", "Sets the 2nd rank to pingpong with (0 is the 1st)", "1"},
-                            {"arg.blockingSend", "Sets the send mode", "1"},
-                            {"arg.blockingRecv", "Sets the recv mode", "1"},
-                            {"arg.waitall", "Sets the wait mode", "1"}, )
+    SST_ELI_DOCUMENT_PARAMS({"arg.elementCount", "Sets the number of elements in the send operation", "112"},
+                            {"arg.iterations", "Sets the number of send operations to perform", "1"},
+                            {"arg.rank2", "Sets the 2nd rank to send to (0 is the 1st)", "1"}, )
     SST_ELI_DOCUMENT_STATISTICS(
         {"time-Init", "Time spent in Init event", "ns", 0}, {"time-Finalize", "Time spent in Finalize event", "ns", 0},
         {"time-Rank", "Time spent in Rank event", "ns", 0}, {"time-Size", "Time spent in Size event", "ns", 0},
@@ -61,17 +57,14 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     void* m_sendBuf;
     void* m_recvBuf;
 
+    uint32_t m_elementCount;
     uint32_t m_messageSize;
     uint32_t m_iterations;
     uint64_t m_startTime;
     uint64_t m_stopTime;
     uint32_t m_loopIndex;
-    uint32_t m_count;
 
     int m_rank2;
-    bool m_blockingSend;
-    bool m_blockingRecv;
-    bool m_waitall;
     bool m_verify;
 };
 
