@@ -34,12 +34,12 @@ EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params& 
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    int *sendBufElements = (int *)((char *)m_sendBuf + 64);
-    //     output("m_messageSize=0x%u, m_sendBuf=%p, &sendBufElements[%d]=%p, offset=%lu\n", m_messageSize, m_sendBuf,
-    //            0, &sendBufElements[0], (char *)&sendBufElements[0] - (char *)m_sendBuf);
+    pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
+    header->source = rank();
+    header->destination = (rank() + 1) % size();
+
+    int *sendBufElements = (int *)((char *)m_sendBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
     for (int i = 0; i < m_elementCount; i++) {
-        output("m_messageSize=0x%u, m_sendBuf=%p, &sendBufElements[%d]=%p, offset=%lu\n", m_messageSize, m_sendBuf,
-               i, &sendBufElements[i], (char *)&sendBufElements[i] - (char *)m_sendBuf);
         sendBufElements[i] = 100 * rank() + i;
     }
 }
