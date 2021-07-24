@@ -120,6 +120,7 @@ class EmberGenerator : public SubComponent {
     virtual void* memAlloc( size_t );
     virtual void memFree( void* );
 	virtual void memSetBacked() { m_dataMode = Backing; }
+	virtual void memSetBackedZeroed() { m_dataMode = BackingZeroed; }
     bool haveDetailed() { return m_detailedCompute; }
 
     Thornhill::DetailedCompute*   m_detailedCompute;

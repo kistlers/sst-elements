@@ -14,6 +14,9 @@
 // distribution.
 
 #include <sst_config.h>
+
+// sst_config must be at top
+
 #include "emberpspinsend.h"
 
 using namespace SST::Ember;
@@ -26,14 +29,19 @@ EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params& 
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
 
+    memSetBackedZeroed();
     m_messageSize = 64 + m_elementCount * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    // memSetBacked();
-    // for ( int i = 0; i < m_elementCount; i++ ) {
-    // ((int*)m_sendBuf + 64)[i] = rank();
-    // }
+    int *sendBufElements = (int *)((char *)m_sendBuf + 64);
+    //     output("m_messageSize=0x%u, m_sendBuf=%p, &sendBufElements[%d]=%p, offset=%lu\n", m_messageSize, m_sendBuf,
+    //            0, &sendBufElements[0], (char *)&sendBufElements[0] - (char *)m_sendBuf);
+    for (int i = 0; i < m_elementCount; i++) {
+        output("m_messageSize=0x%u, m_sendBuf=%p, &sendBufElements[%d]=%p, offset=%lu\n", m_messageSize, m_sendBuf,
+               i, &sendBufElements[i], (char *)&sendBufElements[i] - (char *)m_sendBuf);
+        sendBufElements[i] = 100 * rank() + i;
+    }
 }
 
 bool EmberPspinSendGenerator::generate(std::queue<EmberEvent*>& evQ) {
