@@ -1,3 +1,3 @@
 #pragma once
 
-#include <pspin_generic.h>
+#include <pspin_sst.h>
