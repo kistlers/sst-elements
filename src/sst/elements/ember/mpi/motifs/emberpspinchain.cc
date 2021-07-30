@@ -37,8 +37,8 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
 
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
-    m_blockingSend = (uint32_t) params.find("arg.blockingSend", true);;
-    m_blockingRecv = (uint32_t) params.find("arg.blockingRecv", true);;
+    m_blockingSend = (uint32_t) params.find("arg.blockingSend", true);
+    m_blockingRecv = (uint32_t) params.find("arg.blockingRecv", true);
     m_waitall = (uint32_t) params.find("arg.waitall", false);
 
 }
