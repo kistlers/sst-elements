@@ -61,9 +61,20 @@ bool EmberSendGenerator::generate(std::queue<EmberEvent *> &evQ) {
         if (m_rank2 == rank() && m_verify) {
             int32_t *recvBufElements = (int32_t *)m_recvBuf;
             for (int i = 0; i < m_elementCount; i++) {
-                int32_t shouldEqual = 100 * otherRank() + i + 1;
+                int32_t shouldEqual = 100 * otherRank() + i;
                 if (shouldEqual != recvBufElements[i]) {
-                    printf("Error: Rank %d index %d failed  got=%d shouldEqual=%d\n", rank(), i, recvBufElements[i],
+                    printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i, recvBufElements[i],
+                           shouldEqual);
+                }
+            }
+        }
+
+        if (0 == rank() && m_verify) {
+            int32_t *sendBufElements = (int32_t *)m_sendBuf;
+            for (int i = 0; i < m_elementCount; i++) {
+                int32_t shouldEqual = 100 * rank() + i;
+                if (shouldEqual != sendBufElements[i]) {
+                    printf("Error: Rank %d sendBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i, sendBufElements[i],
                            shouldEqual);
                 }
             }
