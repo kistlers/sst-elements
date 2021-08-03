@@ -71,7 +71,7 @@ bool EmberPingPongGenerator::generate( std::queue<EmberEvent*>& evQ)
                                 bandwidth / 1000000000.0 );
         }
 
-        if (m_verify) {
+        if ((0 == rank() || m_rank2 == rank()) && m_verify) {
             std::function<uint64_t()> verify = [&]() {
                 int32_t *recvBufElements = (int32_t *)m_recvBuf;
                 for (int i = 0; i < m_count; i++) {
