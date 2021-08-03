@@ -15,6 +15,9 @@
 
 
 #include <sst_config.h>
+
+// sst_config must be at top
+
 #include "emberpingpong.h"
 
 using namespace SST::Ember;
@@ -29,16 +32,25 @@ EmberPingPongGenerator::EmberPingPongGenerator(SST::ComponentId_t id, Params& pa
     m_blockingRecv( true ),
     m_waitall( false )
 {
-	m_messageSize = (uint32_t) params.find("arg.messageSize", 1024);
+    m_messageSize = (uint32_t)params.find("arg.messageSize", 448);
 	m_iterations = (uint32_t) params.find("arg.iterations", 1);
 	m_rank2 = (uint32_t) params.find("arg.rank2", 1);
+    m_verify = params.find<bool>("arg.verify", true);
 
+    assert(m_messageSize / sizeofDataType(INT) * sizeofDataType(INT) == m_messageSize);
+
+    memSetBackedZeroed();
+    m_count = m_messageSize / sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
     m_blockingSend = (uint32_t) params.find("arg.blockingSend", true);
     m_blockingRecv = (uint32_t) params.find("arg.blockingRecv", true);
     m_waitall = (uint32_t) params.find("arg.waitall", false);
-
+    
+    int32_t *sendBufElements = (int32_t *)m_sendBuf;
+    for (int i = 0; i < m_count; i++) {
+        sendBufElements[i] = 100 * rank() + i;
+    }
 }
 
 bool EmberPingPongGenerator::generate( std::queue<EmberEvent*>& evQ)
@@ -57,6 +69,21 @@ bool EmberPingPongGenerator::generate( std::queue<EmberEvent*>& evQ)
                                 m_messageSize,
                                 latency * 1000000.0,
                                 bandwidth / 1000000000.0 );
+        }
+
+        if (m_verify) {
+            std::function<uint64_t()> verify = [&]() {
+                int32_t *recvBufElements = (int32_t *)m_recvBuf;
+                for (int i = 0; i < m_count; i++) {
+                    int32_t shouldEqual = 100 * otherRank() + i;
+                    if (shouldEqual != recvBufElements[i]) {
+                        printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
+                               recvBufElements[i], shouldEqual);
+                    }
+                }
+                return 0;
+            };
+            enQ_compute(evQ, verify);
         }
         return true;
     }

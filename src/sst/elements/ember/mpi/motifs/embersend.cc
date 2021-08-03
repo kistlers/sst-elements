@@ -24,21 +24,19 @@ using namespace SST::Ember;
 #define TAG 0xDEADBEEF
 
 EmberSendGenerator::EmberSendGenerator(SST::ComponentId_t id, Params &params)
-    : EmberMessagePassingGenerator(id, params, "Send"),
-      m_loopIndex(0),
-      m_rank2(1) {
-    m_elementCount = (uint32_t)params.find("arg.elementCount", 112);
+    : EmberMessagePassingGenerator(id, params, "Send"), m_loopIndex(0), m_rank2(1) {
+    m_count = (uint32_t)params.find("arg.count", 112);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
     m_verify = params.find<bool>("arg.verify", true);
 
     memSetBackedZeroed();
-    m_messageSize = m_elementCount * sizeofDataType(INT);
+    m_messageSize = m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
     int32_t *sendBufElements = (int32_t *)m_sendBuf;
-    for (int i = 0; i < m_elementCount; i++) {
+    for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
     }
 }
@@ -59,26 +57,20 @@ bool EmberSendGenerator::generate(std::queue<EmberEvent *> &evQ) {
         }
 
         if (m_rank2 == rank() && m_verify) {
-            int32_t *recvBufElements = (int32_t *)m_recvBuf;
-            for (int i = 0; i < m_elementCount; i++) {
-                int32_t shouldEqual = 100 * otherRank() + i;
-                if (shouldEqual != recvBufElements[i]) {
-                    printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i, recvBufElements[i],
-                           shouldEqual);
+            std::function<uint64_t()> verify = [&]() {
+                int32_t *recvBufElements = (int32_t *)m_recvBuf;
+                for (int i = 0; i < m_count; i++) {
+                    int32_t shouldEqual = 100 * otherRank() + i;
+                    if (shouldEqual != recvBufElements[i]) {
+                        printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
+                               recvBufElements[i], shouldEqual);
+                    }
                 }
-            }
+                return 0;
+            };
+            enQ_compute(evQ, verify);
         }
 
-        if (0 == rank() && m_verify) {
-            int32_t *sendBufElements = (int32_t *)m_sendBuf;
-            for (int i = 0; i < m_elementCount; i++) {
-                int32_t shouldEqual = 100 * rank() + i;
-                if (shouldEqual != sendBufElements[i]) {
-                    printf("Error: Rank %d sendBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i, sendBufElements[i],
-                           shouldEqual);
-                }
-            }
-        }
         return true;
     }
 

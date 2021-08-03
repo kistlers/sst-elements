@@ -70,19 +70,25 @@ public:
 	EmberPingPongGenerator(SST::ComponentId_t, Params& params);
     bool generate( std::queue<EmberEvent*>& evQ);
 
+    uint32_t otherRank() {
+        return rank() == m_rank2 ? 0 : m_rank2;
+    }
+
 private:
     MessageRequest  m_req;
     MessageResponse m_resp;
     void*    m_sendBuf;
     void*    m_recvBuf;
 
-	uint32_t m_messageSize;
+    uint32_t m_messageSize;
+	uint32_t m_count;
 	uint32_t m_iterations;
     uint64_t m_startTime;
     uint64_t m_stopTime;
     uint32_t m_loopIndex;
 
     int      m_rank2;
+    bool     m_verify;
     bool     m_blockingSend;
     bool     m_blockingRecv;
     bool     m_waitall;
