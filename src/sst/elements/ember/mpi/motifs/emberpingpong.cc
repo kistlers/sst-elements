@@ -39,7 +39,7 @@ EmberPingPongGenerator::EmberPingPongGenerator(SST::ComponentId_t id, Params& pa
 
     assert(m_messageSize / sizeofDataType(INT) * sizeofDataType(INT) == m_messageSize);
 
-    memSetBackedZeroed();
+    memSetBacked();
     m_count = m_messageSize / sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);

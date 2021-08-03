@@ -23,28 +23,32 @@ using namespace SST::Ember;
 
 #define TAG 0xDEADBEEF
 
-EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params& params)
+EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params &params)
     : EmberMessagePassingGenerator(id, params, "PspinSend"), m_loopIndex(0), m_rank2(1) {
-    m_elementCount = (uint32_t)params.find("arg.elementCount", 112);
+    m_count = (uint32_t)params.find("arg.count", 112);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
+    m_verify = params.find<bool>("arg.verify", true);
 
-    memSetBackedZeroed();
-    m_messageSize = 64 + m_elementCount * sizeofDataType(INT);
+    memSetBacked();
+    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
+    memset(m_sendBuf, 0, m_messageSize);
+    memset(m_recvBuf, 0, m_messageSize);
 
     pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
     header->source = rank();
-    header->destination = (rank() + 1) % size();
-
-    int *sendBufElements = (int *)((char *)m_sendBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
-    for (int i = 0; i < m_elementCount; i++) {
+    header->destination = otherRank();
+    output("rank %u: header->source=%u header->destination=%d\n", rank(), header->source, header->destination);
+    
+    int32_t *sendBufElements = (int32_t *)((char *)m_sendBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+    for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
     }
 }
 
-bool EmberPspinSendGenerator::generate(std::queue<EmberEvent*>& evQ) {
+bool EmberPspinSendGenerator::generate(std::queue<EmberEvent *> &evQ) {
     if (m_loopIndex == m_iterations || !(0 == rank() || m_rank2 == rank())) {
         if (0 == rank()) {
             double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
@@ -58,6 +62,22 @@ bool EmberPspinSendGenerator::generate(std::queue<EmberEvent*>& evQ) {
                 getMotifName().c_str(), m_rank2, totalTime * 1000000.0, m_iterations, m_messageSize,
                 latency * 1000000.0, bandwidth / 1000000000.0);
         }
+
+        if (m_rank2 == rank() && m_verify) {
+            std::function<uint64_t()> verify = [&]() {
+                int32_t *recvBufElements = (int32_t *)m_recvBuf;
+                for (int i = 0; i < m_count; i++) {
+                    int32_t shouldEqual = 100 * otherRank() + i;
+                    if (shouldEqual != recvBufElements[i]) {
+                        printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
+                               recvBufElements[i], shouldEqual);
+                    }
+                }
+                return 0;
+            };
+            enQ_compute(evQ, verify);
+        }
+
         return true;
     }
 
@@ -71,13 +91,11 @@ bool EmberPspinSendGenerator::generate(std::queue<EmberEvent*>& evQ) {
     }
 
     if (0 == rank()) {
-        enQ_send( evQ, m_sendBuf, m_messageSize, CHAR, m_rank2,
-                                                TAG, GroupWorld );
-        // enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, otherRank(), m_rank2, GroupWorld);
+        // enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, otherRank(), m_rank2, GroupWorld, &m_resp);
     } else if (m_rank2 == rank()) {
-        enQ_recv( evQ, m_recvBuf, m_messageSize, CHAR, 0,
-                                                TAG, GroupWorld, &m_resp );
-        // enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, otherRank(), m_rank2, GroupWorld, &m_resp);
+        // enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, otherRank(), m_rank2, GroupWorld);
     }
 
     if (++m_loopIndex == m_iterations) {

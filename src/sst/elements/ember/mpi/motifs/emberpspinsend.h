@@ -36,7 +36,7 @@ public:
     )
 
     SST_ELI_DOCUMENT_PARAMS(
-        {   "arg.elementCount",      "Sets the number of elements in the send operation", "112"},
+        {   "arg.count",      "Sets the number of elements in the send operation", "112"},
         {   "arg.iterations",       "Sets the number of send operations to perform",   "1"},
         {   "arg.rank2",        "Sets the 2nd rank to send to (0 is the 1st)",    "1"},
     )
@@ -68,13 +68,17 @@ public:
 	EmberPspinSendGenerator(SST::ComponentId_t, Params& params);
     bool generate( std::queue<EmberEvent*>& evQ);
 
+    uint32_t otherRank() {
+        return rank() == m_rank2 ? 0 : m_rank2;
+    }
+
 private:
     MessageRequest  m_req;
     MessageResponse m_resp;
     void*    m_sendBuf;
     void*    m_recvBuf;
 
-	uint32_t m_elementCount;
+	uint32_t m_count;
 	uint32_t m_messageSize;
 	uint32_t m_iterations;
     uint64_t m_startTime;
@@ -82,7 +86,7 @@ private:
     uint32_t m_loopIndex;
 
     int      m_rank2;
-    // bool    m_verify;
+    bool     m_verify;
 };
 
 }
