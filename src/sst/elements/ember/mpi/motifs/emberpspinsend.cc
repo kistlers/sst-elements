@@ -30,18 +30,16 @@ EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params &
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
     m_verify = params.find<bool>("arg.verify", true);
 
-    memSetBacked();
+    memSetBackedZeroed();
     m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
-    memset(m_sendBuf, 0, m_messageSize);
-    memset(m_recvBuf, 0, m_messageSize);
 
     pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
     header->source = rank();
     header->destination = otherRank();
     output("rank %u: header->source=%u header->destination=%d\n", rank(), header->source, header->destination);
-    
+
     int32_t *sendBufElements = (int32_t *)((char *)m_sendBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
     for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
@@ -65,7 +63,20 @@ bool EmberPspinSendGenerator::generate(std::queue<EmberEvent *> &evQ) {
 
         if (m_rank2 == rank() && m_verify) {
             std::function<uint64_t()> verify = [&]() {
-                int32_t *recvBufElements = (int32_t *)m_recvBuf;
+                pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
+
+                if (header->source != otherRank()) {
+                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->source,
+                           otherRank());
+                }
+                if (header->destination != rank()) {
+                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->destination,
+                           rank());
+                }
+
+                int32_t *recvBufElements =
+                    (int32_t *)((char *)m_recvBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+                ;
                 for (int i = 0; i < m_count; i++) {
                     int32_t shouldEqual = 100 * otherRank() + i;
                     if (shouldEqual != recvBufElements[i]) {
