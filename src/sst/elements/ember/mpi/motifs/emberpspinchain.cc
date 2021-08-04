@@ -40,7 +40,7 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     chain_header->source = rank();
     chain_header->destination = nextRank();
     chain_header->chain_target = size() - 1;
-    output("rank %u: chain_header->source=%u chain_header->destination=%d chain_header->chain_target=%d\n", rank(),
+    output("rank %u: source=%u destination=%d chain_target=%d\n", rank(),
            chain_header->source, chain_header->destination, chain_header->chain_target);
 
     int32_t *sendBufElements = (int32_t *)&chain_pkt->elements;
@@ -64,7 +64,7 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
                 bandwidth / 1000000000.0);
         }
 
-        if (0 < rank() && m_verify) {
+        if (rank() > 0 && m_verify) {
             std::function<uint64_t()> verify = [&]() {
                 pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
 
@@ -73,7 +73,7 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
                            prevRank());
                 }
                 if (header->destination != rank()) {
-                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->destination,
+                    printf("Error: Rank %d header->destination failed  got=%d shouldEqual=%d\n", rank(), header->destination,
                            rank());
                 }
 
