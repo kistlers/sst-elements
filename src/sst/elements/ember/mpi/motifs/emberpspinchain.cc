@@ -23,110 +23,99 @@ using namespace SST::Ember;
 
 #define TAG 0xDEADBEEF
 
-EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params& params ) :
-	EmberMessagePassingGenerator(id, params, "PspinChain"),
-    m_loopIndex(0),
-    m_rank2(1),
-    m_blockingSend( true ),
-    m_blockingRecv( true ),
-    m_waitall( false )
-{
-	m_messageSize = (uint32_t) params.find("arg.messageSize", 1024);
-	m_iterations = (uint32_t) params.find("arg.iterations", 1);
-	m_rank2 = (uint32_t) params.find("arg.rank2", size() - 1);
+EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params &params)
+    : EmberMessagePassingGenerator(id, params, "PspinChain"), m_loopIndex(0) {
+    m_count = (uint32_t)params.find("arg.count", 112);
+    m_iterations = (uint32_t)params.find("arg.iterations", 1);
+    m_verify = params.find<bool>("arg.verify", true);
 
+    memSetBackedZeroed();
+    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
-    m_blockingSend = (uint32_t) params.find("arg.blockingSend", true);
-    m_blockingRecv = (uint32_t) params.find("arg.blockingRecv", true);
-    m_waitall = (uint32_t) params.find("arg.waitall", false);
+        
+    pspin_chain_pkt_t *chain_pkt = (pspin_chain_pkt_t *)m_sendBuf;
 
+    pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->header;
+    chain_header->source = rank();
+    chain_header->destination = nextRank();
+    chain_header->chain_target = size() - 1;
+    output("rank %u: chain_header->source=%u chain_header->destination=%d chain_header->chain_target=%d\n", rank(),
+           chain_header->source, chain_header->destination, chain_header->chain_target);
+
+    int32_t *sendBufElements = (int32_t *)&chain_pkt->elements;
+    for (int i = 0; i < m_count; i++) {
+        sendBufElements[i] = 100 * rank() + i;
+    }
 }
 
-bool EmberPspinChainGenerator::generate( std::queue<EmberEvent*>& evQ)
-{
-    if ( m_loopIndex == m_iterations || ! ( 0 == rank() || m_rank2 == rank() ) ) {
-        if ( 0 == rank()) {
-            double totalTime = (double)(m_stopTime - m_startTime)/1000000000.0;
+bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
+    if (m_loopIndex == m_iterations) {
+        if (0 == rank()) {
+            double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
 
-            double latency = ((totalTime/m_iterations)/2);
-            double bandwidth = (double) m_messageSize / latency;
+            double latency = ((totalTime / m_iterations) / 2);
+            double bandwidth = (double)m_messageSize / latency;
 
-            output("%s: otherRank %d, total time %.3f us, loop %d, bufLen %d"
-                    ", latency %.3f us. bandwidth %f GB/s\n",
-                                getMotifName().c_str(), m_rank2,
-                                totalTime * 1000000.0, m_iterations,
-                                m_messageSize,
-                                latency * 1000000.0,
-                                bandwidth / 1000000000.0 );
+            output(
+                "%s: size %d, total time %.3f us, loop %d, bufLen %d"
+                ", latency %.3f us. bandwidth %f GB/s\n",
+                getMotifName().c_str(), size(), totalTime * 1000000.0, m_iterations, m_messageSize, latency * 1000000.0,
+                bandwidth / 1000000000.0);
         }
+
+        if (0 < rank() && m_verify) {
+            std::function<uint64_t()> verify = [&]() {
+                pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
+
+                if (header->source != prevRank()) {
+                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->source,
+                           prevRank());
+                }
+                if (header->destination != rank()) {
+                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->destination,
+                           rank());
+                }
+
+                int32_t *recvBufElements =
+                    (int32_t *)((char *)m_recvBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+                ;
+                for (int i = 0; i < m_count; i++) {
+                    int32_t shouldEqual = 100 * 0 + i;
+                    if (shouldEqual != recvBufElements[i]) {
+                        printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
+                               recvBufElements[i], shouldEqual);
+                    }
+                }
+                return 0;
+            };
+            enQ_compute(evQ, verify);
+        }
+
         return true;
     }
 
-    if ( 0 == m_loopIndex ) {
+    if (0 == m_loopIndex) {
         verbose(CALL_INFO, 1, 0, "rank=%d size=%d\n", rank(), size());
 
-        if ( 0 == rank() ) {
-        	output("rank2=%d messageSize=%d iterations=%d\n",m_rank2, m_messageSize, m_iterations);
-            enQ_getTime( evQ, &m_startTime );
+        if (0 == rank()) {
+            output("rank=%d messageSize=%d iterations=%d\n", rank(), m_messageSize, m_iterations);
+            enQ_getTime(evQ, &m_startTime);
         }
     }
 
-    if ( 0 == rank()) {
+    if (rank() == 0) {
+        output("send %d->%d tag=%d messageSize=%d iterations=%d\n", rank(), nextRank(), nextRank(), m_messageSize, m_iterations);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), nextRank(), GroupWorld);
+    }
 
-        if ( m_blockingSend ) {
-            enQ_send( evQ, m_sendBuf, m_messageSize, CHAR, m_rank2,
-                                                TAG, GroupWorld );
-        } else {
-            enQ_isend( evQ, m_sendBuf, m_messageSize, CHAR, m_rank2,
-                                                TAG, GroupWorld, &m_req );
-            if ( m_waitall ) {
-                enQ_waitall( evQ, 1, &m_req, (MessageResponse**)&m_resp );
-            } else {
-                enQ_wait( evQ, &m_req );
-            }
-        }
-        if ( m_blockingRecv ) {
-            enQ_recv( evQ, m_recvBuf, m_messageSize, CHAR, m_rank2,
-                                                TAG, GroupWorld, &m_resp );
-        } else {
-            enQ_irecv( evQ, m_recvBuf, m_messageSize, CHAR, m_rank2,
-                                                TAG, GroupWorld, &m_req );
-            if ( m_waitall ) {
-                enQ_waitall( evQ, 1, &m_req, (MessageResponse**)&m_resp );
-            } else {
-                enQ_wait( evQ, &m_req );
-            }
-        }
-	} else if ( m_rank2 == rank()) {
-        if ( m_blockingRecv ) {
-            enQ_recv( evQ, m_recvBuf, m_messageSize, CHAR, 0,
-                                                TAG, GroupWorld, &m_resp );
-        } else {
-		    enQ_irecv( evQ, m_recvBuf, m_messageSize, CHAR, 0,
-                                                TAG, GroupWorld, &m_req );
-            if ( m_waitall ) {
-                enQ_waitall( evQ, 1, &m_req, (MessageResponse**)&m_resp );
-            } else {
-                enQ_wait( evQ, &m_req );
-            }
-        }
-        if ( m_blockingSend ) {
-            enQ_send( evQ, m_sendBuf, m_messageSize, CHAR, 0,
-                                                TAG, GroupWorld );
-        } else {
-            enQ_isend( evQ, m_sendBuf, m_messageSize, CHAR, 0,
-                                                TAG, GroupWorld, &m_req );
-            if ( m_waitall ) {
-                enQ_waitall( evQ, 1, &m_req, (MessageResponse**)&m_resp );
-            } else {
-                enQ_wait( evQ, &m_req );
-            }
-        }
-	}
+    if (rank() > 0) {
+        output("recv %d->%d tag=%d messageSize=%d iterations=%d\n", prevRank(), rank(), rank(), m_messageSize, m_iterations);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), rank(), GroupWorld, &m_resp);
+    }
 
-    if ( ++m_loopIndex == m_iterations ) {
-        enQ_getTime( evQ, &m_stopTime );
+    if (++m_loopIndex == m_iterations) {
+        enQ_getTime(evQ, &m_stopTime);
     }
     return false;
 }
