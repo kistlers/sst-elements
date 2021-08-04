@@ -31,7 +31,7 @@ EmberPspinReduceGenerator::EmberPspinReduceGenerator(SST::ComponentId_t id, Para
 
     m_verify = params.find<bool>("arg.verify", true);
 
-    memSetBacked();
+    memSetBackedZeroed();
     m_messageSize = m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);

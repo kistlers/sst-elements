@@ -30,12 +30,10 @@ EmberSendGenerator::EmberSendGenerator(SST::ComponentId_t id, Params &params)
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
     m_verify = params.find<bool>("arg.verify", true);
 
-    memSetBacked();
+    memSetBackedZeroed();
     m_messageSize = m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
-    memset(m_sendBuf, 0, m_messageSize);
-    memset(m_recvBuf, 0, m_messageSize);
 
     int32_t *sendBufElements = (int32_t *)m_sendBuf;
     for (int i = 0; i < m_count; i++) {

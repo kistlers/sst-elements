@@ -131,6 +131,11 @@ protected:
 		mpi().setBacked();
 	}
 
+	void memSetBackedZeroed() {
+		EmberGenerator::memSetBackedZeroed();
+		mpi().setBacked();
+	}
+
 private:
 	EmberMpiLib*	m_mpi;
 	EmberRankMap*	m_rankMap;

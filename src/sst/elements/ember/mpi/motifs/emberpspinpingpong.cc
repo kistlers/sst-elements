@@ -33,7 +33,7 @@ EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, 
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    // memSetBacked();
+    // memSetBackedZeroed();
     // for ( int i = 0; i < m_elementCount; i++ ) {
     // ((int*)m_sendBuf + 64)[i] = rank();
     // }
