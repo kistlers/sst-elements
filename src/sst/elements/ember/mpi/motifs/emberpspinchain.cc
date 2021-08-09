@@ -25,7 +25,7 @@ using namespace SST::Ember;
 
 EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params &params)
     : EmberMessagePassingGenerator(id, params, "PspinChain"), m_loopIndex(0) {
-    m_count = (uint32_t)params.find("arg.count", 112);
+    m_count = (uint32_t)params.find("arg.count", 128);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
 
     memSetBackedZeroed();
@@ -34,11 +34,13 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     m_recvBuf = memAlloc(m_messageSize);
 
     pspin_chain_pkt_t *chain_pkt = (pspin_chain_pkt_t *)m_sendBuf;
-
-    pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->header;
-    chain_header->destination = nextRank();
-    chain_header->chain_target = size() - 1;
-    output("rank %u: destination=%d chain_target=%d\n", rank(), chain_header->destination, chain_header->chain_target);
+    if (rank() < size() - 1) {
+        pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->header;
+        chain_header->destination = nextRank();
+        chain_header->chain_target = size() - 1;
+        output("rank %u: size: %u destination=%d chain_target=%d\n", rank(), size(), chain_header->destination,
+               chain_header->chain_target);
+    }
 
     int32_t *sendBufElements = (int32_t *)&chain_pkt->elements;
     for (int i = 0; i < m_count; i++) {
