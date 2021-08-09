@@ -25,18 +25,20 @@ using namespace SST::Ember;
 
 EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, Params& params)
     : EmberMessagePassingGenerator(id, params, "PspinPingPong"), m_loopIndex(0), m_rank2(1) {
-    m_elementCount = (uint32_t)params.find("arg.elementCount", 112);
+    m_count = (uint32_t)params.find("arg.count", 128);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
 
-    m_messageSize = 64 + m_elementCount * sizeofDataType(INT);
+    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
+    memSetBackedZeroed();
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    // memSetBackedZeroed();
-    // for ( int i = 0; i < m_elementCount; i++ ) {
-    // ((int*)m_sendBuf + 64)[i] = rank();
-    // }
+    pingpong_pkt_t *pingpong_pkt = (pingpong_pkt_t *)m_sendBuf;
+    int32_t *sendBufElements = (int32_t *)&pingpong_pkt->elements;
+    for (int i = 0; i < m_count; i++) {
+        sendBufElements[i] = 100 * rank() + i;
+    }
 }
 
 bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
@@ -70,7 +72,6 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
         enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
     } else if (m_rank2 == rank()) {
         enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_resp);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, 0, TAG, GroupWorld);
     }
 
     if (++m_loopIndex == m_iterations) {

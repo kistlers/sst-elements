@@ -17,6 +17,8 @@
 #define _H_EMBER_PSPIN_PING_PONG
 
 #include "mpi/embermpigen.h"
+#include "pspin.h"
+#include "pspin_pingpong.h"
 
 namespace SST {
 namespace Ember {
@@ -27,7 +29,7 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
                                           SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin PingPong Motif",
                                           SST::Ember::EmberGenerator)
 
-    SST_ELI_DOCUMENT_PARAMS({"arg.elementCount", "Sets the number of elements in the send operation", "112"},
+    SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of elements in the send operation", "128"},
                             {"arg.iterations", "Sets the number of send operations to perform", "1"},
                             {"arg.rank2", "Sets the 2nd rank to send to (0 is the 1st)", "1"}, )
     SST_ELI_DOCUMENT_STATISTICS(
@@ -57,7 +59,7 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     void* m_sendBuf;
     void* m_recvBuf;
 
-    uint32_t m_elementCount;
+    uint32_t m_count;
     uint32_t m_messageSize;
     uint32_t m_iterations;
     uint64_t m_startTime;
@@ -65,7 +67,6 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     uint32_t m_loopIndex;
 
     int m_rank2;
-    bool m_verify;
 };
 
 }  // namespace Ember
