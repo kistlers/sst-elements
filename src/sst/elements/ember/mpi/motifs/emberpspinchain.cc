@@ -29,7 +29,7 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
 
     memSetBackedZeroed();
-    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
+    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_chain_pkt_header_t)) + m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 

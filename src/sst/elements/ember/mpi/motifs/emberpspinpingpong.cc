@@ -34,7 +34,7 @@ EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, 
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
 
-    pingpong_pkt_t *pingpong_pkt = (pingpong_pkt_t *)m_sendBuf;
+    pspin_pingpong_pkt_t *pingpong_pkt = (pspin_pingpong_pkt_t *)m_sendBuf;
     int32_t *sendBufElements = (int32_t *)&pingpong_pkt->elements;
     for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
