@@ -38,7 +38,8 @@ EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params &
     header->destination = otherRank();
     output("rank %u: header->destination=%d\n", rank(), header->destination);
 
-    int32_t *sendBufElements = (int32_t *)((char *)m_sendBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+    pspin_send_pkt_t *send_pkt = (pspin_send_pkt_t *)m_sendBuf;
+    int32_t *sendBufElements = (int32_t *)&send_pkt->elements;
     for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
     }

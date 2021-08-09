@@ -18,6 +18,7 @@
 
 #include "mpi/embermpigen.h"
 #include "pspin.h"
+#include "pspin_send.h"
 
 namespace SST {
 namespace Ember {
