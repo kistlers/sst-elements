@@ -68,8 +68,6 @@ class EmberPspinChainGenerator : public EmberMessagePassingGenerator {
     uint64_t m_startTime;
     uint64_t m_stopTime;
     uint32_t m_loopIndex;
-
-    bool m_verify;
 };
 
 }  // namespace Ember

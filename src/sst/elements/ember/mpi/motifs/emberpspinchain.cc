@@ -27,21 +27,18 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     : EmberMessagePassingGenerator(id, params, "PspinChain"), m_loopIndex(0) {
     m_count = (uint32_t)params.find("arg.count", 112);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
-    m_verify = params.find<bool>("arg.verify", true);
 
     memSetBackedZeroed();
     m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
-        
+
     pspin_chain_pkt_t *chain_pkt = (pspin_chain_pkt_t *)m_sendBuf;
 
     pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->header;
-    chain_header->source = rank();
     chain_header->destination = nextRank();
     chain_header->chain_target = size() - 1;
-    output("rank %u: source=%u destination=%d chain_target=%d\n", rank(),
-           chain_header->source, chain_header->destination, chain_header->chain_target);
+    output("rank %u: destination=%d chain_target=%d\n", rank(), chain_header->destination, chain_header->chain_target);
 
     int32_t *sendBufElements = (int32_t *)&chain_pkt->elements;
     for (int i = 0; i < m_count; i++) {
@@ -64,33 +61,30 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
                 bandwidth / 1000000000.0);
         }
 
-        if (rank() > 0 && m_verify) {
-            std::function<uint64_t()> verify = [&]() {
-                pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
+        // if (rank() > 0 && m_verify) {
+        //     std::function<uint64_t()> verify = [&]() {
+        //         pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
 
-                if (header->source != prevRank()) {
-                    printf("Error: Rank %d header->source failed  got=%d shouldEqual=%d\n", rank(), header->source,
-                           prevRank());
-                }
-                if (header->destination != rank()) {
-                    printf("Error: Rank %d header->destination failed  got=%d shouldEqual=%d\n", rank(), header->destination,
-                           rank());
-                }
+        //         if (header->destination != rank()) {
+        //             printf("Error: Rank %d header->destination failed  got=%d shouldEqual=%d\n", rank(),
+        //             header->destination,
+        //                    rank());
+        //         }
 
-                int32_t *recvBufElements =
-                    (int32_t *)((char *)m_recvBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
-                ;
-                for (int i = 0; i < m_count; i++) {
-                    int32_t shouldEqual = 100 * 0 + i;
-                    if (shouldEqual != recvBufElements[i]) {
-                        printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
-                               recvBufElements[i], shouldEqual);
-                    }
-                }
-                return 0;
-            };
-            enQ_compute(evQ, verify);
-        }
+        //         int32_t *recvBufElements =
+        //             (int32_t *)((char *)m_recvBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+        //         ;
+        //         for (int i = 0; i < m_count; i++) {
+        //             int32_t shouldEqual = 100 * 0 + i;
+        //             if (shouldEqual != recvBufElements[i]) {
+        //                 printf("Error: Rank %d recvBufElements[%d] failed  got=%d shouldEqual=%d\n", rank(), i,
+        //                        recvBufElements[i], shouldEqual);
+        //             }
+        //         }
+        //         return 0;
+        //     };
+        //     enQ_compute(evQ, verify);
+        // }
 
         return true;
     }
@@ -105,12 +99,14 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
     }
 
     if (rank() == 0) {
-        output("send %d->%d tag=%d messageSize=%d iterations=%d\n", rank(), nextRank(), nextRank(), m_messageSize, m_iterations);
+        output("send %d->%d tag=%d messageSize=%d iterations=%d\n", rank(), nextRank(), nextRank(), m_messageSize,
+               m_iterations);
         enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), nextRank(), GroupWorld);
     }
 
     if (rank() > 0) {
-        output("recv %d->%d tag=%d messageSize=%d iterations=%d\n", prevRank(), rank(), rank(), m_messageSize, m_iterations);
+        output("recv %d->%d tag=%d messageSize=%d iterations=%d\n", prevRank(), rank(), rank(), m_messageSize,
+               m_iterations);
         enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), rank(), GroupWorld, &m_resp);
     }
 

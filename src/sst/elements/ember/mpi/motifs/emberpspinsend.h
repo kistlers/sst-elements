@@ -68,7 +68,6 @@ class EmberPspinSendGenerator : public EmberMessagePassingGenerator {
     uint32_t m_loopIndex;
 
     int m_rank2;
-    bool m_verify;
 };
 
 }  // namespace Ember
