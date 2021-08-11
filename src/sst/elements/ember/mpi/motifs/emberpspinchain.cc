@@ -35,10 +35,11 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
 
     pspin_chain_pkt_t *chain_pkt = (pspin_chain_pkt_t *)m_sendBuf;
     if (rank() < size() - 1) {
-        pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->header;
-        chain_header->destination = nextRank();
+        pspin_pkt_header_t *pspin_header = (pspin_pkt_header_t *)&chain_pkt->pspin_header;
+        pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->chain_header;
+        pspin_header->destination = nextRank();
         chain_header->chain_target = size() - 1;
-        output("rank %u: size: %u destination=%d chain_target=%d\n", rank(), size(), chain_header->destination,
+        output("rank %u: size: %u destination=%d chain_target=%d\n", rank(), size(), pspin_header->destination,
                chain_header->chain_target);
     }
 
@@ -101,15 +102,15 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
     }
 
     if (rank() == 0) {
-        output("send %d->%d tag=%d messageSize=%d iterations=%d\n", rank(), nextRank(), nextRank(), m_messageSize,
-               m_iterations);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), nextRank(), GroupWorld);
+        output("send %d->%d tag=%d=0x%x pspinTag=0x%x messageSize=%d iterations=%d\n", rank(), nextRank(),
+               nextRank(), nextRank(), pspinTag(nextRank()), m_messageSize, m_iterations);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), pspinTag(nextRank()), GroupWorld);
     }
 
     if (rank() > 0) {
-        output("recv %d->%d tag=%d messageSize=%d iterations=%d\n", prevRank(), rank(), rank(), m_messageSize,
-               m_iterations);
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), rank(), GroupWorld, &m_resp);
+        output("recv %d->%d tag=%d=0x%x pspinTag=0x%x messageSize=%d iterations=%d\n", prevRank(), rank(), rank(),
+               rank(), pspinTag(rank()), m_messageSize, m_iterations);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), pspinTag(rank()), GroupWorld, &m_resp);
     }
 
     if (++m_loopIndex == m_iterations) {

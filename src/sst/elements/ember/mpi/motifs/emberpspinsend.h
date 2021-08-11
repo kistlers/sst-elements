@@ -17,7 +17,7 @@
 #define _H_EMBER_PSPIN_SEND
 
 #include "mpi/embermpigen.h"
-#include "pspin.h"
+#include "emberpspin.h"
 #include "pspin_send.h"
 
 namespace SST {

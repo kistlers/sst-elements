@@ -17,7 +17,7 @@
 #define _H_EMBER_PSPIN_PING_PONG
 
 #include "mpi/embermpigen.h"
-#include "pspin.h"
+#include "emberpspin.h"
 #include "pspin_pingpong.h"
 
 namespace SST {

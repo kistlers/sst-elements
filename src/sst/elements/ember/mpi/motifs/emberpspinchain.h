@@ -16,8 +16,10 @@
 #ifndef _H_EMBER_PSPIN_SEND
 #define _H_EMBER_PSPIN_SEND
 
+#include <cassert>
+
+#include "emberpspin.h"
 #include "mpi/embermpigen.h"
-#include "pspin.h"
 #include "pspin_chain.h"
 
 namespace SST {
@@ -55,6 +57,11 @@ class EmberPspinChainGenerator : public EmberMessagePassingGenerator {
     uint32_t nextRank() { return rank() < size() - 1 ? rank() + 1 : -1; }
 
     uint32_t prevRank() { return rank() > 0 ? rank() - 1 : -1; }
+
+    uint32_t pspinTag(uint32_t tag) {
+        assert((tag & (uint32_t)0xffff0000) == 0x0);
+        return tag | (uint32_t)0xbeef0000;
+    }
 
    private:
     MessageRequest m_req;
