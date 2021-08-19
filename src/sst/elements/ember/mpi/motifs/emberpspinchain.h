@@ -66,8 +66,8 @@ class EmberPspinChainGenerator : public EmberMessagePassingGenerator {
    private:
     MessageRequest m_req;
     MessageResponse m_resp;
-    void* m_sendBuf;
-    void* m_recvBuf;
+    uint8_t* m_sendBuf;
+    uint8_t* m_recvBuf;
 
     uint32_t m_count;
     uint32_t m_messageSize;

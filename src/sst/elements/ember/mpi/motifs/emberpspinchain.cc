@@ -29,21 +29,25 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
 
     memSetBackedZeroed();
-    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_chain_pkt_header_t)) + m_count * sizeofDataType(INT);
-    m_sendBuf = memAlloc(m_messageSize);
-    m_recvBuf = memAlloc(m_messageSize);
+    m_messageSize = sizeof(sst_handle_t) + sizeof(pspin_chain_header_t) + m_count * sizeofDataType(INT);
+    m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
+    m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
-    pspin_chain_pkt_t *chain_pkt = (pspin_chain_pkt_t *)m_sendBuf;
-    if (rank() < size() - 1) {
-        pspin_pkt_header_t *pspin_header = (pspin_pkt_header_t *)&chain_pkt->pspin_header;
-        pspin_chain_pkt_header_t *chain_header = (pspin_chain_pkt_header_t *)&chain_pkt->chain_header;
-        pspin_header->destination = nextRank();
-        chain_header->chain_target = size() - 1;
-        output("rank %u: size: %u destination=%d chain_target=%d\n", rank(), size(), pspin_header->destination,
-               chain_header->chain_target);
+    if (rank() == 0) {
+        output(
+            "m_messageSize=%lu sizeof(sst_handle_t)+sizeof(pspin_chain_header_t)=%lu "
+            "m_count*sizeofDataType(INT)=%lu\n",
+            m_messageSize, sizeof(sst_handle_t) + sizeof(pspin_chain_header_t), m_count * sizeofDataType(INT));
     }
 
-    int32_t *sendBufElements = (int32_t *)&chain_pkt->elements;
+    if (rank() < size() - 1) {
+        pspin_chain_header_t *chain_header = (pspin_chain_header_t *)(m_sendBuf + sizeof(sst_handle_t));
+        chain_header->chain_target = size() - 1;
+        output("comm_rank %u: comm_size: %u chain_target=%d\n", rank(), size(), chain_header->chain_target);
+    }
+
+    PAYLOAD_DATATYPE *sendBufElements =
+        (PAYLOAD_DATATYPE *)(m_sendBuf + sizeof(sst_handle_t) + sizeof(pspin_chain_header_t));
     for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
     }
@@ -102,15 +106,17 @@ bool EmberPspinChainGenerator::generate(std::queue<EmberEvent *> &evQ) {
     }
 
     if (rank() == 0) {
-        output("send %d->%d tag=%d=0x%x pspinTag=0x%x messageSize=%d iterations=%d\n", rank(), nextRank(),
-               nextRank(), nextRank(), pspinTag(nextRank()), m_messageSize, m_iterations);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), pspinTag(nextRank()), GroupWorld);
+        auto pspinSendTag = pspinTag(nextRank());
+        output("send %d->%d tag=0x%x pspinSendTag=0x%x messageSize=%d iterations=%d\n", rank(), nextRank(), nextRank(),
+               pspinSendTag, m_messageSize, m_iterations);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, nextRank(), pspinSendTag, GroupWorld);
     }
 
     if (rank() > 0) {
-        output("recv %d->%d tag=%d=0x%x pspinTag=0x%x messageSize=%d iterations=%d\n", prevRank(), rank(), rank(),
-               rank(), pspinTag(rank()), m_messageSize, m_iterations);
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), pspinTag(rank()), GroupWorld, &m_resp);
+        auto pspinRecvTag = pspinTag(rank());
+        output("recv %d->%d tag=0x%x pspinRecvTag=0x%x messageSize=%d iterations=%d\n", prevRank(), rank(), rank(),
+               pspinRecvTag, m_messageSize, m_iterations);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, prevRank(), pspinRecvTag, GroupWorld, &m_resp);
     }
 
     if (++m_loopIndex == m_iterations) {

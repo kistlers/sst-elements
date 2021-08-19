@@ -30,16 +30,11 @@ EmberPspinSendGenerator::EmberPspinSendGenerator(SST::ComponentId_t id, Params &
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
 
     memSetBackedZeroed();
-    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
-    m_sendBuf = memAlloc(m_messageSize);
-    m_recvBuf = memAlloc(m_messageSize);
+    m_messageSize = sizeof(pspin_first_pkt_header_t) + m_count * sizeofDataType(INT);
+    m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
+    m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
-    pspin_pkt_header_t *header = (pspin_pkt_header_t *)m_sendBuf;
-    header->destination = otherRank();
-    output("rank %u: header->destination=%d\n", rank(), header->destination);
-
-    pspin_send_pkt_t *send_pkt = (pspin_send_pkt_t *)m_sendBuf;
-    int32_t *sendBufElements = (int32_t *)&send_pkt->elements;
+    PAYLOAD_DATATYPE *sendBufElements = (PAYLOAD_DATATYPE *)(m_sendBuf + sizeof(pspin_first_pkt_header_t));
     for (int i = 0; i < m_count; i++) {
         sendBufElements[i] = 100 * rank() + i;
     }
@@ -71,7 +66,7 @@ bool EmberPspinSendGenerator::generate(std::queue<EmberEvent *> &evQ) {
         //         }
 
         //         int32_t *recvBufElements =
-        //             (int32_t *)((char *)m_recvBuf + ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)));
+        //             (int32_t *)((char *)m_recvBuf + sizeof(pspin_pkt_header_t));
         //         ;
         //         for (int i = 0; i < m_count; i++) {
         //             int32_t shouldEqual = 100 * otherRank() + i;

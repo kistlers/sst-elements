@@ -29,7 +29,7 @@ EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, 
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
 
-    m_messageSize = ROUND_UP_DMA_WIDTH(sizeof(pspin_pkt_header_t)) + m_count * sizeofDataType(INT);
+    m_messageSize = sizeof(pspin_pkt_header_t) + m_count * sizeofDataType(INT);
     memSetBackedZeroed();
     m_sendBuf = memAlloc(m_messageSize);
     m_recvBuf = memAlloc(m_messageSize);
