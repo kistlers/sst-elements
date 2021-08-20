@@ -21,8 +21,6 @@
 
 using namespace SST::Ember;
 
-#define TAG 0xDEADBEEF
-
 EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, Params& params)
     : EmberMessagePassingGenerator(id, params, "PspinPingPong"), m_loopIndex(0), m_rank2(1) {
     m_count = (uint32_t)params.find("arg.count", 128);
@@ -68,10 +66,12 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent*>& evQ) {
     }
 
     if (0 == rank()) {
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld);
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG, GroupWorld, &m_resp);
+        auto pspinSendTag = pspinTag(m_rank2);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, m_rank2, pspinSendTag, GroupWorld);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, pspinSendTag, GroupWorld, &m_resp);
     } else if (m_rank2 == rank()) {
-        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, TAG, GroupWorld, &m_resp);
+        auto pspinRecvTag = pspinTag(m_rank2);
+        enQ_recv(evQ, m_recvBuf, m_messageSize, CHAR, 0, pspinRecvTag, GroupWorld, &m_resp);
     }
 
     if (++m_loopIndex == m_iterations) {

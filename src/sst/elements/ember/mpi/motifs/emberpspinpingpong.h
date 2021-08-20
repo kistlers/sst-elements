@@ -53,6 +53,11 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     EmberPspinPingPongGenerator(SST::ComponentId_t, Params& params);
     bool generate(std::queue<EmberEvent*>& evQ);
 
+    uint32_t pspinTag(uint32_t tag) {
+        assert((tag & (uint32_t)0xffff0000) == 0x0);
+        return tag | (uint32_t)0xbeef0000;
+    }
+
    private:
     MessageRequest m_req;
     MessageResponse m_resp;
