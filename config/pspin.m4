@@ -3,11 +3,8 @@ AC_DEFUN([PSPIN_CHECK],
     pspin_found=no
 
     if test x"${with_pspin}" != x; then
-        CPPFLAGS="$CPPFLAGS -I ${with_pspin}/hw/verilator_model/include  -I${with_pspin}/sw/runtime/include"
-        LDFLAGS="$LDFLAGS -L${with_pspin}/hw/verilator_model/lib -lpspin"
+        CPPFLAGS="$CPPFLAGS -I${with_pspin}/hw/verilator_models/include/ -I${with_pspin}/sw/runtime/include/"
     fi
-
-    AC_CHECK_HEADER(pspinsim.h, [pspin_found=yes], [AC_MSG_ERROR([Can't find PsPIN!])])
 
     ]
 )
