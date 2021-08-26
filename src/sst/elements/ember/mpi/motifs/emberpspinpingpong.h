@@ -16,8 +16,8 @@
 #ifndef _H_EMBER_PSPIN_PING_PONG
 #define _H_EMBER_PSPIN_PING_PONG
 
-#include "mpi/embermpigen.h"
 #include "emberpspin.h"
+#include "mpi/embermpigen.h"
 #include "pspin_pingpong.h"
 
 namespace SST {
@@ -31,7 +31,8 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
 
     SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of elements in the send operation", "128"},
                             {"arg.iterations", "Sets the number of send operations to perform", "1"},
-                            {"arg.rank2", "Sets the 2nd rank to send to (0 is the 1st)", "1"}, )
+                            {"arg.rank2", "Sets the 2nd rank to send to (0 is the 1st)", "1"},
+                            {"arg.verify", "Verify the data transfer", "false"}, )
     SST_ELI_DOCUMENT_STATISTICS(
         {"time-Init", "Time spent in Init event", "ns", 0}, {"time-Finalize", "Time spent in Finalize event", "ns", 0},
         {"time-Rank", "Time spent in Rank event", "ns", 0}, {"time-Size", "Time spent in Size event", "ns", 0},
@@ -54,15 +55,18 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     bool generate(std::queue<EmberEvent*>& evQ);
 
     uint32_t pspinTag(uint32_t tag) {
-        assert((tag & (uint32_t)0xffff0000) == 0x0);
-        return tag | (uint32_t)0xbeef0000;
+        if ((tag & (uint32_t)PSPIN_TAG_MASK) == (uint32_t)PSPIN_TAG_PREFIX) {
+            return tag;
+        }
+        assert((tag & (uint32_t)PSPIN_TAG_MASK) == 0x0);
+        return tag | (uint32_t)PSPIN_TAG_PREFIX;
     }
 
    private:
     MessageRequest m_req;
     MessageResponse m_resp;
-    void* m_sendBuf;
-    void* m_recvBuf;
+    uint8_t* m_sendBuf;
+    uint8_t* m_recvBuf;
 
     uint32_t m_count;
     uint32_t m_messageSize;
@@ -72,6 +76,7 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
     uint32_t m_loopIndex;
 
     int m_rank2;
+    bool m_verify;
 };
 
 }  // namespace Ember

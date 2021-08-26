@@ -59,8 +59,11 @@ class EmberPspinChainGenerator : public EmberMessagePassingGenerator {
     uint32_t prevRank() { return rank() > 0 ? rank() - 1 : -1; }
 
     uint32_t pspinTag(uint32_t tag) {
-        assert((tag & (uint32_t)0xffff0000) == 0x0);
-        return tag | (uint32_t)0xbeef0000;
+        if ((tag & (uint32_t)PSPIN_TAG_MASK) == (uint32_t)PSPIN_TAG_PREFIX) {
+            return tag;
+        }
+        assert((tag & (uint32_t)PSPIN_TAG_MASK) == 0x0);
+        return tag | (uint32_t)PSPIN_TAG_PREFIX;
     }
 
    private:
@@ -75,6 +78,8 @@ class EmberPspinChainGenerator : public EmberMessagePassingGenerator {
     uint64_t m_startTime;
     uint64_t m_stopTime;
     uint32_t m_loopIndex;
+
+    bool m_verify;
 };
 
 }  // namespace Ember
