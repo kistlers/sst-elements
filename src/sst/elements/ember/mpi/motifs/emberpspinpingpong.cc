@@ -38,11 +38,6 @@ EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, 
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
     output("rank: %d, count: %u, messageSize: %u\n", rank(), m_count, m_messageSize);
-    output(
-        "sizeof(pspin_pingpong_header_t): %lu, m_count * sizeofDataType(INT): %lu, "
-        "ROUND_UP_DMA_WIDTH(sizeof(pspin_pingpong_header_t) + m_count * sizeofDataType(INT)): %lu\n",
-        sizeof(pspin_pingpong_header_t), m_count * sizeofDataType(INT),
-        ROUND_UP_DMA_WIDTH(sizeof(pspin_pingpong_header_t) + m_count * sizeofDataType(INT)));
 
     PAYLOAD_DATATYPE *sendBufElements = (PAYLOAD_DATATYPE *)(m_sendBuf + sizeof(pspin_pingpong_header_t));
     for (int i = 0; i < m_count; i++) {
