@@ -32,7 +32,7 @@ EmberPspinPingPongGenerator::EmberPspinPingPongGenerator(SST::ComponentId_t id, 
     m_rank2 = (uint32_t)params.find("arg.rank2", 1);
     m_verify = params.find<bool>("arg.verify", false);
 
-    m_messageSize = sizeof(pspin_pingpong_header_t) + m_count * sizeofDataType(INT);
+    m_messageSize = sizeof(pspin_pingpong_header_t) + m_count * sizeof(uint32_t);
     memSetBackedZeroed();
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);

@@ -29,16 +29,9 @@ EmberPspinChainGenerator::EmberPspinChainGenerator(SST::ComponentId_t id, Params
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
 
     memSetBackedZeroed();
-    m_messageSize = sizeof(pspin_chain_header_t) + m_count * sizeofDataType(INT);
+    m_messageSize = sizeof(pspin_chain_header_t) + m_count * sizeof(uint32_t);
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
-
-    if (rank() == 0) {
-        output(
-            "m_messageSize=%lu sizeof(pspin_chain_header_t)=%lu "
-            "m_count*sizeofDataType(INT)=%lu\n",
-            m_messageSize, sizeof(pspin_chain_header_t), m_count * sizeofDataType(INT));
-    }
 
     if (rank() < size() - 1) {
         pspin_chain_header_t *chain_header = (pspin_chain_header_t *)m_sendBuf;
