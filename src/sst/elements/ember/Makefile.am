@@ -108,13 +108,12 @@ libember_la_SOURCES = \
 	mpi/motifs/emberpingpong.h \
 	mpi/motifs/embersend.cc \
 	mpi/motifs/embersend.h \
+	mpi/motifs/emberpspin.cc \
 	mpi/motifs/emberpspin.h \
 	mpi/motifs/emberpspinpingpong.h \
 	mpi/motifs/emberpspinpingpong.cc \
 	mpi/motifs/emberpspinchain.h \
 	mpi/motifs/emberpspinchain.cc \
-	mpi/motifs/emberpspinreduce.h \
-	mpi/motifs/emberpspinreduce.cc \
 	mpi/motifs/emberpspinsend.h \
 	mpi/motifs/emberpspinsend.cc \
 	mpi/motifs/emberbipingpong.cc \

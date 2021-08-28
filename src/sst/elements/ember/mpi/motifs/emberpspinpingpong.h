@@ -23,7 +23,7 @@
 namespace SST {
 namespace Ember {
 
-class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
+class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator, private EmberPspinGenerator {
    public:
     SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinPingPongGenerator, "ember", "PspinPingPongMotif",
                                           SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin PingPong Motif",
@@ -53,14 +53,6 @@ class EmberPspinPingPongGenerator : public EmberMessagePassingGenerator {
    public:
     EmberPspinPingPongGenerator(SST::ComponentId_t, Params& params);
     bool generate(std::queue<EmberEvent*>& evQ);
-
-    uint32_t pspinTag(uint32_t tag) {
-        if ((tag & (uint32_t)PSPIN_TAG_MASK) == (uint32_t)PSPIN_TAG_PREFIX) {
-            return tag;
-        }
-        assert((tag & (uint32_t)PSPIN_TAG_MASK) == 0x0);
-        return tag | (uint32_t)PSPIN_TAG_PREFIX;
-    }
 
    private:
     MessageRequest m_req;

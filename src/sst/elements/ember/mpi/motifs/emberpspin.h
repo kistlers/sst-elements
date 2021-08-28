@@ -3,7 +3,12 @@
 
 #include <pspin_sst.h>
 
-#define PSPIN_TAG_MASK 0xffff0000
-#define PSPIN_TAG_PREFIX 0xbeef0000
+class EmberPspinGenerator {
+   public:
+    EmberPspinGenerator();
+    ~EmberPspinGenerator();
+
+    uint32_t pspinTag(uint32_t tag);
+};
 
 #endif

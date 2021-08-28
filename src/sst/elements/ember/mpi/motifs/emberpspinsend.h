@@ -23,7 +23,7 @@
 namespace SST {
 namespace Ember {
 
-class EmberPspinSendGenerator : public EmberMessagePassingGenerator {
+class EmberPspinSendGenerator : public EmberMessagePassingGenerator, private EmberPspinGenerator {
    public:
     SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinSendGenerator, "ember", "PspinSendMotif",
                                           SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin Send Motif",
