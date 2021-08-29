@@ -13,23 +13,28 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#ifndef _H_EMBER_PSPIN_REDUCE
-#define _H_EMBER_PSPIN_REDUCE
+#ifndef _H_EMBER_PSPIN_PING_PONG
+#define _H_EMBER_PSPIN_PING_PONG
 
+#include <algorithm>
+#include <numeric>
+
+#include "emberpspin.h"
 #include "mpi/embermpigen.h"
+#include "pspin_allreduce.h"
 
 namespace SST {
 namespace Ember {
 
-class EmberPspinReduceGenerator : public EmberMessagePassingGenerator {
+class EmberPspinAllReduceGenerator : public EmberMessagePassingGenerator, private EmberPspinGenerator {
    public:
-    SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinReduceGenerator, "ember", "PspinReduceMotif",
-                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin Reduce Motif",
+    SST_ELI_REGISTER_SUBCOMPONENT_DERIVED(EmberPspinAllReduceGenerator, "ember", "PspinAllReduceMotif",
+                                          SST_ELI_ELEMENT_VERSION(1, 0, 0), "Performs a Pspin AllReduce Motif",
                                           SST::Ember::EmberGenerator)
 
-    SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of data items per", "1"},
-                            {"arg.verify", "Verify the data transfer", "false"},
-                            {"arg.iterations", "Sets the number of ping pong operations to perform", "1"}, )
+    SST_ELI_DOCUMENT_PARAMS({"arg.count", "Sets the number of elements in the send operation", "128"},
+                            {"arg.iterations", "Sets the number of send operations to perform", "1"},
+                            {"arg.verify", "Verify the data transfer", "false"}, )
     SST_ELI_DOCUMENT_STATISTICS(
         {"time-Init", "Time spent in Init event", "ns", 0}, {"time-Finalize", "Time spent in Finalize event", "ns", 0},
         {"time-Rank", "Time spent in Rank event", "ns", 0}, {"time-Size", "Time spent in Size event", "ns", 0},
@@ -48,21 +53,38 @@ class EmberPspinReduceGenerator : public EmberMessagePassingGenerator {
         {"time-Commcreate", "Time spent in Commcreate event", "ns", 0}, )
 
    public:
-    EmberPspinReduceGenerator(SST::ComponentId_t, Params& params);
+    EmberPspinAllReduceGenerator(SST::ComponentId_t, Params& params);
     bool generate(std::queue<EmberEvent*>& evQ);
 
-   private:
-    MessageRequest m_req;
-    MessageResponse m_resp;
-    void* m_sendBuf;
-    void* m_recvBuf;
+    std::vector<uint32_t> getChildren() {
+        std::vector<uint32_t> children;
+        for (uint32_t c = CHILD(rank(), 0); c < CHILD(rank(), REDUCTION_FACTOR); c++) {
+            if (c >= size()) {
+                break;
+            }
+            children.push_back(c);
+        }
+        return children;
+    }
 
+   private:
+    MessageRequest *m_req_children;
+    MessageRequest m_req_parent;
+    MessageResponse *m_resp_comm;
+
+    uint32_t m_syncMsgSize;
+
+    uint8_t* m_sendBuf;
+    uint8_t* m_recvBuf;
+    uint8_t* m_syncSendBuf;
+    uint8_t* m_syncRecvBufs;
+
+    uint32_t m_count;
     uint32_t m_messageSize;
     uint32_t m_iterations;
     uint64_t m_startTime;
     uint64_t m_stopTime;
     uint32_t m_loopIndex;
-    uint32_t m_count;
 
     bool m_verify;
 };

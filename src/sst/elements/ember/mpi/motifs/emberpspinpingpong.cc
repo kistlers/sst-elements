@@ -84,14 +84,14 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent *> &evQ) {
         return true;
     }
 
-    uint32_t synch_msg_size = 64;
+    uint32_t syncMsgSize = 64;
 
     if (0 == rank()) {
         // get ready to recv the pong
         enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, m_rank2, TAG_PONG, GroupWorld, &m_req);
 
         // first recv the sync message (to make sure there is a recv on the other side)
-        enQ_recv(evQ, m_recvBuf, synch_msg_size, CHAR, m_rank2, TAG_SYNC, GroupWorld, &m_resp);
+        enQ_recv(evQ, m_recvBuf, syncMsgSize, CHAR, m_rank2, TAG_SYNC, GroupWorld, &m_resp);
 
         // get the time after the sync
         if (m_loopIndex == 0) {
@@ -113,7 +113,7 @@ bool EmberPspinPingPongGenerator::generate(std::queue<EmberEvent *> &evQ) {
         enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, 0, pingTag, GroupWorld, &m_req);
 
         // send the ready-to-recv
-        enQ_send(evQ, NULL, synch_msg_size, CHAR, 0, TAG_SYNC, GroupWorld);
+        enQ_send(evQ, NULL, syncMsgSize, CHAR, 0, TAG_SYNC, GroupWorld);
 
         // wait for the recv to complete (the sending of the pong is done by PsPIN)
         enQ_wait(evQ, &m_req);
