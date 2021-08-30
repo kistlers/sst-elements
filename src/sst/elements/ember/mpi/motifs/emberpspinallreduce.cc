@@ -21,7 +21,8 @@
 
 using namespace SST::Ember;
 
-#define TAG_SYNC 0x0000CAFE
+#define TAG_REDUCE 0x0000CECE
+#define TAG_BROADCAST 0x0000BCBC
 
 EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id, Params &params)
     : EmberMessagePassingGenerator(id, params, "PspinAllReduce"), m_loopIndex(0) {
@@ -84,18 +85,18 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     assertNumChildren();
 
     // get ready to recv the msg
-    const auto selfTag = pspinTag(rank());
+    const auto reduceTag = pspinTag(TAG_REDUCE);
+    // const auto broadcastTag = pspinTag(TAG_BROADCAST);
     const auto parent = PARENT(rank());
-    const auto parentTag = pspinTag(parent);
 
     if (hasChildren()) {
         // recv from child during reduce (one for all children)
-        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, MPI_ANY_SOURCE, selfTag, GroupWorld, &m_req_child);
+        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, MPI_ANY_SOURCE, reduceTag, GroupWorld, &m_req_child);
     }
 
     if (rank() != 0) {
         // recv from parent during broadcast
-        // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, selfTag, GroupWorld, &m_req_parent);
+        // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, broadcastTag, GroupWorld, &m_req_parent);
     }
 
     // get the time after the sync
@@ -106,12 +107,12 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     if (!hasChildren()) {  // start at leafs
         // then send to parent to start reduction
         output("rank %u sending to parent %u\n", rank(), parent);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, parentTag, GroupWorld);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld);
     }
 
     if (hasChildren()) {
         // send to self to start reduction at current node
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld);
 
         // then wait for the recv
         output("rank %u waiting for children\n", rank());
