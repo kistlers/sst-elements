@@ -34,8 +34,6 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
-    m_req_children = (MessageRequest *)memAlloc(REDUCTION_FACTOR * sizeof(MessageRequest));
-
     output("rank: %d, size: %d, count: %u, messageSize: %u\n", rank(), size(), m_count, m_messageSize);
 
     PAYLOAD_DATATYPE *sendBufElements = (PAYLOAD_DATATYPE *)m_sendBuf;
@@ -46,6 +44,12 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
 
 bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     if (m_loopIndex == m_iterations) {
+        std::function<uint64_t()> rankDone = [&]() {
+            output("Rank %d done\n", rank());
+            return 0;
+        };
+        enQ_compute(evQ, rankDone);
+
         if (0 == rank()) {
             double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
 
@@ -86,10 +90,13 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     output("rank %u, children: [", rank());
     for (size_t i = 0; i < children.size(); i++) {
         output(" %u,", children[i]);
-        // recv from child during reduce
-        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, children[i], selfTag, GroupWorld, &m_req_children[i]);
     }
     output("]\n");
+
+    if (!children.empty()) {
+        // recv from child during reduce (one for all children)
+        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, MPI_ANY_SOURCE, selfTag, GroupWorld, &m_req_child);
+    }
 
     if (rank() != 0) {
         // recv from parent during broadcast
@@ -113,10 +120,10 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     // send to self to start reduction at current node
     // enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld);
 
-    // then wait for the recvs
-    for (size_t i = 0; i < children.size(); i++) {
-        output("rank %u waiting for child[%i]=%u\n", rank(), i, children[i]);
-        enQ_wait(evQ, &m_req_children[i]);
+    if (!children.empty()) {
+        // then wait for the recv
+        output("rank %u waiting for children\n", rank());
+        enQ_wait(evQ, &m_req_child);
     }
 
     // then wait for the recv from self

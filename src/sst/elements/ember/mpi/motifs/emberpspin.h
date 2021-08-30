@@ -3,6 +3,9 @@
 
 #include <pspin_sst.h>
 
+#define MPI_ANY_SOURCE -1
+#define MPI_ANY_TAG -1
+
 class EmberPspinGenerator {
    public:
     EmberPspinGenerator();

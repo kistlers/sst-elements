@@ -64,11 +64,12 @@ class EmberPspinAllReduceGenerator : public EmberMessagePassingGenerator, privat
             }
             children.push_back(c);
         }
+        assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
         return children;
     }
 
    private:
-    MessageRequest *m_req_children;
+    MessageRequest m_req_child;
     MessageRequest m_req_parent;
 
     uint8_t* m_sendBuf;
