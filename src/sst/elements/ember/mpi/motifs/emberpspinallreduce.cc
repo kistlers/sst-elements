@@ -35,6 +35,8 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
+    m_req_children = (MessageRequest *)memAlloc((REDUCTION_FACTOR + 1) * sizeof(MessageRequest));
+
     output("rank: %d, size: %d, count: %u, messageSize: %u\n", rank(), size(), m_count, m_messageSize);
 
     PAYLOAD_DATATYPE *sendBufElements = (PAYLOAD_DATATYPE *)m_sendBuf;
@@ -46,7 +48,7 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
 bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     if (m_loopIndex == m_iterations) {
         std::function<uint64_t()> rankDone = [&]() {
-            output("Rank %d done\n", rank());
+            output("rank %d done\n", rank());
             return 0;
         };
         enQ_compute(evQ, rankDone);
@@ -82,45 +84,55 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         return true;
     }
 
-    assertNumChildren();
+    // assertNumChildren();
 
-    // get ready to recv the msg
     const auto reduceTag = pspinTag(TAG_REDUCE);
     // const auto broadcastTag = pspinTag(TAG_BROADCAST);
     const auto parent = PARENT(rank());
+    const auto children = getChildren();
 
-    if (hasChildren()) {
-        // recv from child during reduce (one for all children)
-        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, MPI_ANY_SOURCE, reduceTag, GroupWorld, &m_req_child);
+    // recv from children during reduce (one for each child)
+    for (size_t i = 0; i < children.size(); i++) {
+        output("rank %u starting irecv from child %u\n", rank(), children[i]);
+        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, children[i], reduceTag, GroupWorld, &m_req_children[i]);
     }
 
-    if (rank() != 0) {
-        // recv from parent during broadcast
-        // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, broadcastTag, GroupWorld, &m_req_parent);
-    }
+    // if (rank() != 0) {
+    // recv from parent during broadcast
+    // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, broadcastTag, GroupWorld, &m_req_parent);
+    // }
 
     // get the time after the sync
     if (m_loopIndex == 0) {
         enQ_getTime(evQ, &m_startTime);
     }
 
-    if (!hasChildren()) {  // start at leafs
-        // then send to parent to start reduction
+    // if (hasChildren()) {
+    //     // send to self to start reduction at current node
+    //     output("rank %u sending to self\n", rank());
+    //     enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld);
+    //     // enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld, &m_req_self_send);
+    // }
+    if (!hasChildren()) {
+        // start at leaves and send to parent to start reduction
         output("rank %u sending to parent %u\n", rank(), parent);
         enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld);
+        // enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld, &m_req_parent_send);
     }
 
-    if (hasChildren()) {
-        // send to self to start reduction at current node
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld);
+    // if (hasChildren()) {
+    //     output("rank %u waiting for send to self\n", rank());
+    //     enQ_wait(evQ, &m_req_self_send);
+    // } else {
+    //     output("rank %u waiting for send to parent %u\n", rank(), parent);
+    //     enQ_wait(evQ, &m_req_parent_send);
+    // }
 
-        // then wait for the recv
-        output("rank %u waiting for children\n", rank());
-        enQ_wait(evQ, &m_req_child);
+    // then wait for the recvs
+    for (size_t i = 0; i < children.size(); i++) {
+        output("rank %u waiting for recv from child %u\n", rank(), children[i]);
+        enQ_wait(evQ, &m_req_children[i]);
     }
-
-    // then wait for the recv from self
-    // enQ_wait(evQ, &m_req_self);
 
     if (++m_loopIndex == m_iterations) {
         enQ_getTime(evQ, &m_stopTime);

@@ -59,34 +59,70 @@ class EmberPspinAllReduceGenerator : public EmberMessagePassingGenerator, privat
     bool hasChildren() { return CHILD(rank(), 0) < size(); }
 
     void assertNumChildren() {
-        uint32_t numChildren = 0;
-        output("rank %u, children: [", rank());
+        std::vector<uint32_t> children;
         for (uint32_t c = CHILD(rank(), 0); c < CHILD(rank(), REDUCTION_FACTOR); c++) {
             if (c >= size()) {
                 break;
             }
-            output(" %u,", c);
-            numChildren++;
+            children.push_back(c);
+        }
+
+        // output(
+        // "rank: %u, size: %u, children.size(): %u, hasChildren(): %s, REDUCTION_FACTOR: %u, "
+        // "INC_STREAMS_PER_NODE_WITH_SELF(%u, %u): %u\n",
+        // rank(), size(), children.size(), BOOL_STRING(hasChildren()), REDUCTION_FACTOR, rank(), size(),
+        // INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+        if (children.empty()) {
+            assert(!hasChildren());
+            // assert(children.size() == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+            assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
+        } else {
+            // children.push_back(rank());
+            assert(hasChildren());
+            // assert(children.size() == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+            assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
+        }
+
+        output("rank %u, children: [", rank());
+        for (size_t i = 0; i < children.size(); i++) {
+            output(" %u,", children[i]);
+        }
+        output("]\n");
+    }
+
+    std::vector<uint32_t> getChildren() {
+        std::vector<uint32_t> children;
+        for (uint32_t c = CHILD(rank(), 0); c < CHILD(rank(), REDUCTION_FACTOR); c++) {
+            if (c >= size()) {
+                break;
+            }
+            children.push_back(c);
+        }
+        if (children.empty()) {
+            assert(!hasChildren());
+            // assert(children.size() == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+            assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
+        } else {
+            // children.push_back(rank());
+            assert(hasChildren());
+            // assert(children.size() == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+            assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
+        }
+
+        output("rank %u, children: [", rank());
+        for (size_t i = 0; i < children.size(); i++) {
+            output(" %u,", children[i]);
         }
         output("]\n");
 
-        // output(
-            // "rank: %u, size: %u, numChildren: %u, hasChildren(): %s, REDUCTION_FACTOR: %u, "
-            // "INC_STREAMS_PER_NODE_WITH_SELF(%u, %u): %u\n",
-            // rank(), size(), numChildren, BOOL_STRING(hasChildren()), REDUCTION_FACTOR, rank(), size(),
-            // INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
-        if (numChildren == 0) {
-            assert(!hasChildren());
-            assert(numChildren == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
-        } else {
-            assert(hasChildren());
-            assert(numChildren + 1 == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
-        }
+        return children;
     }
 
    private:
-    MessageRequest m_req_child;
+    MessageRequest* m_req_children;
     MessageRequest m_req_parent;
+    MessageRequest m_req_parent_send;
+    MessageRequest m_req_self_send;
 
     uint8_t* m_sendBuf;
     uint8_t* m_recvBuf;
