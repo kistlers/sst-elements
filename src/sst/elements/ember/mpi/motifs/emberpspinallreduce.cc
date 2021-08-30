@@ -24,7 +24,7 @@ using namespace SST::Ember;
 #define TAG_SYNC 0x0000CAFE
 
 EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id, Params &params)
-    : EmberMessagePassingGenerator(id, params, "PspinAllReduce"), m_loopIndex(0), m_syncMsgSize(64) {
+    : EmberMessagePassingGenerator(id, params, "PspinAllReduce"), m_loopIndex(0) {
     m_count = (uint32_t)params.find("arg.count", 128);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_verify = params.find<bool>("arg.verify", false);
@@ -34,11 +34,7 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
 
-    m_syncRecvBufs = (uint8_t *)memAlloc(size() * m_syncMsgSize);
-    m_syncSendBuf = (uint8_t *)memAlloc(m_syncMsgSize);
-
     m_req_children = (MessageRequest *)memAlloc(REDUCTION_FACTOR * sizeof(MessageRequest));
-    m_resp_comm = (MessageResponse *)memAlloc(size() * sizeof(MessageResponse));
 
     output("rank: %d, size: %d, count: %u, messageSize: %u\n", rank(), size(), m_count, m_messageSize);
 
@@ -103,17 +99,6 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     // recv from self during reduce
     // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld, &m_req_self);
 
-    if (rank() == 0) {
-        for (size_t i = 1; i < size(); i++) {
-            // first recv the sync message (to make sure there is a recv on the other side)
-            enQ_recv(evQ, &m_syncRecvBufs[i * size()], m_syncMsgSize, CHAR, i, TAG_SYNC, GroupWorld, &m_resp_comm[i]);
-        }
-    }
-    if (rank() != 0) {
-        // send the ready-to-recv to rank 0
-        enQ_send(evQ, m_syncSendBuf, m_syncMsgSize, CHAR, 0, TAG_SYNC, GroupWorld);
-    }
-
     // get the time after the sync
     if (m_loopIndex == 0) {
         enQ_getTime(evQ, &m_startTime);
@@ -133,6 +118,9 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         output("rank %u waiting for child[%i]=%u\n", rank(), i, children[i]);
         enQ_wait(evQ, &m_req_children[i]);
     }
+
+    // then wait for the recv from self
+    // enQ_wait(evQ, &m_req_self);
 
     if (++m_loopIndex == m_iterations) {
         enQ_getTime(evQ, &m_stopTime);
