@@ -56,16 +56,32 @@ class EmberPspinAllReduceGenerator : public EmberMessagePassingGenerator, privat
     EmberPspinAllReduceGenerator(SST::ComponentId_t, Params& params);
     bool generate(std::queue<EmberEvent*>& evQ);
 
-    std::vector<uint32_t> getChildren() {
-        std::vector<uint32_t> children;
+    bool hasChildren() { return CHILD(rank(), 0) < size(); }
+
+    void assertNumChildren() {
+        uint32_t numChildren = 0;
+        output("rank %u, children: [", rank());
         for (uint32_t c = CHILD(rank(), 0); c < CHILD(rank(), REDUCTION_FACTOR); c++) {
             if (c >= size()) {
                 break;
             }
-            children.push_back(c);
+            output(" %u,", c);
+            numChildren++;
         }
-        assert(children.size() == INC_STREAMS_PER_NODE(rank(), size()));
-        return children;
+        output("]\n");
+
+        // output(
+            // "rank: %u, size: %u, numChildren: %u, hasChildren(): %s, REDUCTION_FACTOR: %u, "
+            // "INC_STREAMS_PER_NODE_WITH_SELF(%u, %u): %u\n",
+            // rank(), size(), numChildren, BOOL_STRING(hasChildren()), REDUCTION_FACTOR, rank(), size(),
+            // INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+        if (numChildren == 0) {
+            assert(!hasChildren());
+            assert(numChildren == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+        } else {
+            assert(hasChildren());
+            assert(numChildren + 1 == INC_STREAMS_PER_NODE_WITH_SELF(rank(), size()));
+        }
     }
 
    private:

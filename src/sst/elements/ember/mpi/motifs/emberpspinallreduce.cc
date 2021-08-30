@@ -81,19 +81,14 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         return true;
     }
 
+    assertNumChildren();
+
     // get ready to recv the msg
     const auto selfTag = pspinTag(rank());
-    const auto children = getChildren();
     const auto parent = PARENT(rank());
     const auto parentTag = pspinTag(parent);
 
-    output("rank %u, children: [", rank());
-    for (size_t i = 0; i < children.size(); i++) {
-        output(" %u,", children[i]);
-    }
-    output("]\n");
-
-    if (!children.empty()) {
+    if (hasChildren()) {
         // recv from child during reduce (one for all children)
         enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, MPI_ANY_SOURCE, selfTag, GroupWorld, &m_req_child);
     }
@@ -103,24 +98,21 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, selfTag, GroupWorld, &m_req_parent);
     }
 
-    // recv from self during reduce
-    // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld, &m_req_self);
-
     // get the time after the sync
     if (m_loopIndex == 0) {
         enQ_getTime(evQ, &m_startTime);
     }
 
-    if (children.empty()) {  // start at leafs
+    if (!hasChildren()) {  // start at leafs
         // then send to parent to start reduction
         output("rank %u sending to parent %u\n", rank(), parent);
         enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, parentTag, GroupWorld);
     }
 
-    // send to self to start reduction at current node
-    // enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld);
+    if (hasChildren()) {
+        // send to self to start reduction at current node
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), selfTag, GroupWorld);
 
-    if (!children.empty()) {
         // then wait for the recv
         output("rank %u waiting for children\n", rank());
         enQ_wait(evQ, &m_req_child);
