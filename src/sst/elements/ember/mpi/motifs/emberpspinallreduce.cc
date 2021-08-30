@@ -50,12 +50,6 @@ EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id
 
 bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     if (m_loopIndex == m_iterations) {
-        std::function<uint64_t()> rankDone = [&]() {
-            output("rank %d done\n", rank());
-            return 0;
-        };
-        enQ_compute(evQ, rankDone);
-
         if (0 == rank()) {
             double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
 
@@ -116,7 +110,7 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         }
     }
     if (rank() != 0) {
-        // send the ready-to-recv (not to self)
+        // send the ready-to-recv to rank 0
         enQ_send(evQ, m_syncSendBuf, m_syncMsgSize, CHAR, 0, TAG_SYNC, GroupWorld);
     }
 
