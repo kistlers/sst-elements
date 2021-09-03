@@ -55,8 +55,7 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
 
         if (0 == rank()) {
             double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
-
-            double latency = ((totalTime / m_iterations) / 2);
+            double latency = totalTime / m_iterations;
             double bandwidth = (double)m_messageSize / latency;
 
             output(
@@ -119,14 +118,6 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld);
         // enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld, &m_req_parent_send);
     }
-
-    // if (hasChildren()) {
-    //     output("rank %u waiting for send to self\n", rank());
-    //     enQ_wait(evQ, &m_req_self_send);
-    // } else {
-    //     output("rank %u waiting for send to parent %u\n", rank(), parent);
-    //     enQ_wait(evQ, &m_req_parent_send);
-    // }
 
     // then wait for the recvs
     for (size_t i = 0; i < children.size(); i++) {
