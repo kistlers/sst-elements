@@ -21,16 +21,13 @@
 
 using namespace SST::Ember;
 
-#define TAG_REDUCE 0x0000CECE
-#define TAG_BROADCAST 0x0000BCBC
-
 EmberPspinAllReduceGenerator::EmberPspinAllReduceGenerator(SST::ComponentId_t id, Params &params)
     : EmberMessagePassingGenerator(id, params, "PspinAllReduce"), m_loopIndex(0) {
     m_count = (uint32_t)params.find("arg.count", 128);
     m_iterations = (uint32_t)params.find("arg.iterations", 1);
     m_verify = params.find<bool>("arg.verify", false);
 
-    m_messageSize = m_count * sizeof(uint32_t);
+    m_messageSize = m_count * sizeof(PAYLOAD_DATATYPE);
     memSetBackedZeroed();
     m_sendBuf = (uint8_t *)memAlloc(m_messageSize);
     m_recvBuf = (uint8_t *)memAlloc(m_messageSize);
@@ -53,17 +50,15 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
         };
         enQ_compute(evQ, rankDone);
 
-        if (0 == rank()) {
-            double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
-            double latency = totalTime / m_iterations;
-            double bandwidth = (double)m_messageSize / latency;
+        double totalTime = (double)(m_stopTime - m_startTime) / 1000000000.0;
+        double latency = totalTime / m_iterations;
+        double bandwidth = (double)m_messageSize / latency * 8;
 
-            output(
-                "%s: total time %.3f us, loop %d, bufLen %d"
-                ", latency %.3f us. bandwidth %f GB/s\n",
-                getMotifName().c_str(), totalTime * 1000000.0, m_iterations, m_messageSize, latency * 1000000.0,
-                bandwidth / 1000000000.0);
-        }
+        output(
+            "%s: Rank %d: total time %.3f us, %d iterations, messageSize %d"
+            ", latency %.3f us. bandwidth %f Gbit/s\n",
+            getMotifName().c_str(), rank(), totalTime * 1000000.0, m_iterations, m_messageSize, latency * 1000000.0,
+            bandwidth / 1000000000.0);
 
         if (m_verify && rank() == 0) {
             std::function<uint64_t()> verify = [&]() {
@@ -85,23 +80,23 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
 
     // assertNumChildren();
 
-    const auto reduceTag = pspinTag(TAG_REDUCE);
-    // const auto broadcastTag = pspinTag(TAG_BROADCAST);
+    const auto pspinReductionTag = pspinTag(PSPIN_TAG_REDUCTION);
+    const auto pspinBroadcastTag = pspinTag(PSPIN_TAG_BROADCAST);
     const auto parent = PARENT(rank());
     const auto children = getChildren();
 
     // recv from children during reduce (one for each child)
     for (size_t i = 0; i < children.size(); i++) {
         output("rank %u starting irecv from child %u\n", rank(), children[i]);
-        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, children[i], reduceTag, GroupWorld, &m_req_children[i]);
+        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, children[i], pspinReductionTag, GroupWorld, &m_req_children[i]);
     }
 
-    // if (rank() != 0) {
-    // recv from parent during broadcast
-    // enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, broadcastTag, GroupWorld, &m_req_parent);
-    // }
+    if (rank() != 0) {
+        // recv from parent during broadcast
+        enQ_irecv(evQ, m_recvBuf, m_messageSize, CHAR, parent, pspinBroadcastTag, GroupWorld, &m_req_parent);
+    }
 
-    // get the time after the sync
+    // get the time after posting the irecvs
     if (m_loopIndex == 0) {
         enQ_getTime(evQ, &m_startTime);
     }
@@ -109,20 +104,23 @@ bool EmberPspinAllReduceGenerator::generate(std::queue<EmberEvent *> &evQ) {
     // if (hasChildren()) {
     //     // send to self to start reduction at current node
     //     output("rank %u sending to self\n", rank());
-    //     enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld);
-    //     // enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, rank(), reduceTag, GroupWorld, &m_req_self_send);
+    //     enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, rank(), pspinReductionTag, GroupWorld);
     // }
     if (!hasChildren()) {
         // start at leaves and send to parent to start reduction
         output("rank %u sending to parent %u\n", rank(), parent);
-        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld);
-        // enQ_isend(evQ, m_sendBuf, m_messageSize, CHAR, parent, reduceTag, GroupWorld, &m_req_parent_send);
+        enQ_send(evQ, m_sendBuf, m_messageSize, CHAR, parent, pspinReductionTag, GroupWorld);
     }
 
     // then wait for the recvs
     for (size_t i = 0; i < children.size(); i++) {
         output("rank %u waiting for recv from child %u\n", rank(), children[i]);
         enQ_wait(evQ, &m_req_children[i]);
+    }
+
+    if (rank() != 0) {
+        output("rank %u waiting for recv from parent %u\n", rank(), parent);
+        enQ_wait(evQ, &m_req_parent);
     }
 
     if (++m_loopIndex == m_iterations) {

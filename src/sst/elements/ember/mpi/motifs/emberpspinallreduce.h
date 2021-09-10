@@ -121,8 +121,6 @@ class EmberPspinAllReduceGenerator : public EmberMessagePassingGenerator, privat
    private:
     MessageRequest* m_req_children;
     MessageRequest m_req_parent;
-    MessageRequest m_req_parent_send;
-    MessageRequest m_req_self_send;
 
     uint8_t* m_sendBuf;
     uint8_t* m_recvBuf;
