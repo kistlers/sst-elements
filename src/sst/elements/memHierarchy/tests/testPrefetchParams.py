@@ -31,7 +31,6 @@ network.addParams({
       "flit_size" : "36B",
       "output_buf_size" : "2KiB",
       "id" : "0",  
-      "topology" : "merlin.singlerouter"
 })
 network.setSubComponent("topology","merlin.singlerouter")
 
@@ -46,7 +45,7 @@ for x in range(cores):
         "addressoffset" : 1024, # Stream between addresses 1024 & 16384
         "memSize" : 1024*4
     })
-    iface = cpu.setSubComponent("memory", "memHierarchy.memInterface")
+    iface = cpu.setSubComponent("memory", "memHierarchy.standardInterface")
     
     l1cache = sst.Component("l1cache" + str(x), "memHierarchy.Cache")
     l1cache.addParams({

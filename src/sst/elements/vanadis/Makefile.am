@@ -12,6 +12,7 @@ comp_LTLIBRARIES = libvanadis.la
 VANADIS_SRC_FILES = \
 os/vnodeos.cc \
 vanadis.h \
+vfpflags.h \
 vfuncunit.h \
 vinsbundle.h \
 vinsloader.h \
@@ -21,7 +22,7 @@ decoder/vauxvec.h \
 decoder/vdecoder.h \
 decoder/visaopts.h \
 decoder/vmipsdecoder.h \
-decoder/vmipsinsloader.h \
+decoder/vriscv64decoder.h \
 inst/fpregmode.h \
 inst/isatable.h \
 inst/regfile.h \
@@ -36,17 +37,25 @@ inst/vbcmpi.h \
 inst/vbcmpil.h \
 inst/vbfp.h \
 inst/vcmptype.h \
+inst/vdecodealignfault.h \
 inst/vdecodefaultinst.h \
 inst/vdelaytype.h \
+inst/vdiv.h \
 inst/vdivmod.h \
+inst/vfault.h \
 inst/vfence.h \
 inst/vfp2fp.h \
 inst/vfp2gpr.h \
 inst/vfpadd.h \
 inst/vfpconv.h \
 inst/vfpdiv.h \
+inst/vfpflagsread.h \
+inst/vfpflagsset.h \
+inst/vfpflagssetimm.h \
+inst/vfpinst.h \
 inst/vfpmul.h \
 inst/vfpscmp.h \
+inst/vfpsignlogic.h \
 inst/vfpsub.h \
 inst/vgpr2fp.h \
 inst/vinstall.h \
@@ -58,6 +67,9 @@ inst/vjr.h \
 inst/vjump.h \
 inst/vload.h \
 inst/vmemflagtype.h \
+inst/vmipsfpscmp.h \
+inst/vmod.h \
+inst/vmovci.h \
 inst/vmul.h \
 inst/vmuli.h \
 inst/vmulsplit.h \
@@ -67,6 +79,7 @@ inst/vor.h \
 inst/vori.h \
 inst/vpartialload.h \
 inst/vpartialstore.h \
+inst/vpcaddi.h \
 inst/vregfmt.h \
 inst/vscmp.h \
 inst/vscmpi.h \
@@ -78,6 +91,7 @@ inst/vsra.h \
 inst/vsrai.h \
 inst/vsrl.h \
 inst/vsrli.h \
+inst/vstorecond.h \
 inst/vstore.h \
 inst/vsub.h \
 inst/vsyscall.h \
@@ -88,8 +102,10 @@ lsq/vlsq.h \
 lsq/vlsqseq.h \
 lsq/vlsqstd.h \
 lsq/vmemwriterec.h \
+os/vosbittype.h \
 os/vcpuos.h \
 os/vmipscpuos.h \
+os/vriscvcpuos.h \
 os/vnodeos.h \
 os/vnodeoshandler.h \
 os/voscallev.h \
@@ -100,6 +116,7 @@ util/vdatacopy.h \
 util/vfpreghandler.h \
 util/vlinesplit.h \
 util/vsignx.h \
+util/vtypename.h \
 vbranch/vbranchbasic.h \
 vbranch/vbranchunit.h \
 velf/velfinfo.h \
@@ -107,11 +124,13 @@ os/callev/voscallaccessev.h \
 os/callev/voscallall.h \
 os/callev/voscallbrk.h \
 os/callev/voscallclose.h \
-os/callev/voscallexitgrp.h \
 os/callev/voscallfstat.h \
+os/callev/voscallexit.h \
+os/callev/voscallexitgrp.h \
 os/callev/voscallgettime64.h \
 os/callev/voscallioctl.h \
 os/callev/voscallmmap.h \
+os/callev/voscallmmapx.h \
 os/callev/voscallopenat.h \
 os/callev/voscallopen.h \
 os/callev/voscallread.h \
@@ -145,6 +164,12 @@ EXTRA_DIST = \
 	tests/small/basic-io/hello-world.c \
 	tests/small/basic-io/hello-world.stderr.gold \
 	tests/small/basic-io/hello-world.stdout.gold \
+	tests/small/basic-io/hello-world.cc \
+	tests/small/basic-io/hello-world-CC.stderr.gold \
+	tests/small/basic-io/hello-world-CC.stdout.gold \
+   tests/small/basic-io/printf-check.c \
+	tests/small/basic-io/printf-check.stdout.gold \
+   tests/small/basic-io/printf-check.stderr.gold \
 	tests/small/basic-math/Makefile \
 	tests/small/basic-math/sqrt-double.c \
 	tests/small/basic-math/sqrt-double.stderr.gold \

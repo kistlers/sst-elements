@@ -18,8 +18,7 @@ comp_cpu.addParams({
     "reqsToIssue" : 500,
     "verbose" : 1
 })
-iface = comp_cpu.setSubComponent("memory", "memHierarchy.scratchInterface")
-iface.addParams({ "scratchpad_size" : "1KiB" })
+iface = comp_cpu.setSubComponent("memory", "memHierarchy.standardInterface")
 comp_scratch = sst.Component("scratch", "memHierarchy.Scratchpad")
 comp_scratch.addParams({
     "debug" : DEBUG_SCRATCH,
@@ -29,19 +28,28 @@ comp_scratch.addParams({
     "scratch_line_size" : 64,
     "memory_line_size" : 64,
     "backing" : "none",
-    "backendConvertor" : "memHierarchy.simpleMemScratchBackendConvertor",
-    "backendConvertor.backend" : "memHierarchy.simpleMem",
-    "backendConvertor.backend.access_time" : "10ns",
-    "backendConvertor.debug_location" : 0,
-    "backendConvertor.debug_level" : 10,
 })
+scratch_conv = comp_scratch.setSubComponent("backendConvertor", "memHierarchy.simpleMemScratchBackendConvertor")
+scratch_back = scratch_conv.setSubComponent("backend", "memHierarchy.simpleMem")
+scratch_back.addParams({
+    "access_time" : "10ns",
+})
+scratch_conv.addParams({
+    "debug_location" : 0,
+    "debug_level" : 10,
+})
+
 memctrl = sst.Component("memory", "memHierarchy.MemController")
 memctrl.addParams({
       "debug" : DEBUG_MEM,
       "debug_level" : 10,
-      "backend.access_time" : "1000 ns",
       "clock" : "1GHz",
-      "backend.mem_size" : "512MiB"
+      "addr_range_start" : 0,
+})
+memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
+memory.addParams({
+    "access_time" : "1000 ns",
+    "mem_size" : "512MiB"
 })
 
 # Enable statistics

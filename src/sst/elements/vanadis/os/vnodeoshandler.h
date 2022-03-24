@@ -19,7 +19,7 @@
 #include <cinttypes>
 #include <cstdint>
 
-#include <sst/core/interfaces/simpleMem.h>
+#include <sst/core/interfaces/stdMem.h>
 #include <sst/core/link.h>
 #include <sst/core/output.h>
 
@@ -234,8 +234,8 @@ public:
             const uint64_t start_read_len
                 = (openat_ev->getPathPointer() % 64) == 0 ? 64 : openat_ev->getPathPointer() % 64;
 
-            SimpleMem::Request* openat_start_req
-                = new SimpleMem::Request(SimpleMem::Request::Read, openat_ev->getPathPointer(), start_read_len);
+            StandardMem::Read* openat_start_req
+                = new StandardMem::Read(openat_ev->getPathPointer(), start_read_len);
 
             sendMemRequest(openat_start_req);
         } break;
@@ -292,8 +292,8 @@ public:
 
             const uint64_t start_read_len = (open_ev->getPathPointer() % 64) == 0 ? 64 : open_ev->getPathPointer() % 64;
 
-            SimpleMem::Request* open_start_req
-                = new SimpleMem::Request(SimpleMem::Request::Read, open_ev->getPathPointer(), start_read_len);
+            StandardMem::Read* open_start_req
+                = new StandardMem::Read(open_ev->getPathPointer(), start_read_len);
 
             sendMemRequest(open_start_req);
         } break;
@@ -331,7 +331,7 @@ public:
 
             if (nullptr == readlink_ev) {
                 output->fatal(CALL_INFO, -1,
-                              "[syscall-readlink] -> error unable ot cast system call "
+                              "[syscall-readlink] -> error unable to cast system call "
                               "to a readlink event.\n");
             }
 
@@ -340,7 +340,7 @@ public:
                                 readlink_ev->getPathPointer(), readlink_ev->getBufferPointer(),
                                 readlink_ev->getBufferSize());
 
-                std::function<void(SimpleMem::Request*)> send_req_func
+                std::function<void(StandardMem::Request*)> send_req_func
                     = std::bind(&VanadisNodeOSCoreHandler::sendMemRequest, this, std::placeholders::_1);
                 std::function<void(const uint64_t, std::vector<uint8_t>&)> send_block_func = std::bind(
                     &VanadisNodeOSCoreHandler::sendBlockToMemory, this, std::placeholders::_1, std::placeholders::_2);
@@ -352,7 +352,7 @@ public:
                 uint64_t line_remain = vanadis_line_remainder(readlink_ev->getPathPointer(), 64);
 
                 sendMemRequest(
-                    new SimpleMem::Request(SimpleMem::Request::Read, readlink_ev->getPathPointer(), line_remain));
+                    new StandardMem::Read(readlink_ev->getPathPointer(), line_remain));
 
             } else if (readlink_ev->getBufferSize() == 0) {
                 VanadisSyscallResponse* resp = new VanadisSyscallResponse(0);
@@ -391,15 +391,25 @@ public:
             } else {
 
                 if (writev_ev->getIOVecCount() > 0) {
-                    std::function<void(SimpleMem::Request*)> send_req_func
+                    std::function<void(StandardMem::Request*)> send_req_func
                         = std::bind(&VanadisNodeOSCoreHandler::sendMemRequest, this, std::placeholders::_1);
 
                     handler_state = new VanadisWritevHandlerState(
-                        output->getVerboseLevel(), writev_ev->getFileDescriptor(), writev_ev->getIOVecAddress(),
+                        output->getVerboseLevel(), writev_ev->getOSBitType(), writev_ev->getFileDescriptor(), writev_ev->getIOVecAddress(),
                         writev_ev->getIOVecCount(), file_des->second->getFileHandle(), send_req_func);
 
                     // Launch read of the initial iovec info
-                    sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Read, writev_ev->getIOVecAddress(), 4));
+						  switch(writev_ev->getOSBitType()) {
+							case VanadisOSBitType::VANADIS_OS_32B:
+                    sendMemRequest(new StandardMem::Read(writev_ev->getIOVecAddress(), 4));
+								break;
+							case VanadisOSBitType::VANADIS_OS_64B:
+                    sendMemRequest(new StandardMem::Read(writev_ev->getIOVecAddress(), 8));
+								break;
+							default:
+								output->fatal(CALL_INFO, -1, "OS event is neither 32b or 64b, unsupported OS bit type.\n");
+								break;
+						  }
                 } else if (writev_ev->getIOVecCount() == 0) {
                     VanadisSyscallResponse* resp = new VanadisSyscallResponse(0);
                     core_link->send(resp);
@@ -440,7 +450,7 @@ public:
                                                         ? write_ev->getBufferCount()
                                                         : 64 - line_offset;
 
-                    std::function<void(SimpleMem::Request*)> send_req_func
+                    std::function<void(StandardMem::Request*)> send_req_func
                         = std::bind(&VanadisNodeOSCoreHandler::sendMemRequest, this, std::placeholders::_1);
 
                     handler_state = new VanadisWriteHandlerState(
@@ -448,7 +458,7 @@ public:
                         write_ev->getBufferAddress(), write_ev->getBufferCount(), send_req_func);
 
                     sendMemRequest(
-                        new SimpleMem::Request(SimpleMem::Request::Read, write_ev->getBufferAddress(), start_read_len));
+                        new StandardMem::Read(write_ev->getBufferAddress(), start_read_len));
                 } else {
                     VanadisSyscallResponse* resp = new VanadisSyscallResponse(0);
                     core_link->send(resp);
@@ -527,14 +537,14 @@ public:
             output->verbose(CALL_INFO, 16, 0, "[syscall-access] access( 0x%llx, %" PRIu64 " )\n",
                             access_ev->getPathPointer(), access_ev->getAccessMode());
 
-            std::function<void(SimpleMem::Request*)> send_req_func
+            std::function<void(StandardMem::Request*)> send_req_func
                 = std::bind(&VanadisNodeOSCoreHandler::sendMemRequest, this, std::placeholders::_1);
 
             handler_state = new VanadisAccessHandlerState(output->getVerboseLevel(), access_ev->getPathPointer(),
                                                           access_ev->getAccessMode(), send_req_func);
 
             uint64_t line_remain = vanadis_line_remainder(access_ev->getPathPointer(), 64);
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Read, access_ev->getPathPointer(), line_remain));
+            sendMemRequest(new StandardMem::Read(access_ev->getPathPointer(), line_remain));
         } break;
 
         case SYSCALL_OP_GETTIME64: {
@@ -562,7 +572,7 @@ public:
                 seconds_payload[i] = sec_ptr[i];
             }
 
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Write, gettime_ev->getTimeStructAddress(),
+            sendMemRequest(new StandardMem::Write(gettime_ev->getTimeStructAddress(),
                                                   sizeof(sim_seconds), seconds_payload));
 
             std::vector<uint8_t> ns_payload;
@@ -573,8 +583,7 @@ public:
                 ns_payload[i] = ns_ptr[i];
             }
 
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Write,
-                                                  gettime_ev->getTimeStructAddress() + sizeof(sim_seconds),
+            sendMemRequest(new StandardMem::Write(gettime_ev->getTimeStructAddress() + sizeof(sim_seconds),
                                                   sizeof(sim_ns), ns_payload));
         } break;
 
@@ -617,7 +626,7 @@ public:
             uint64_t call_stack = mmap_ev->getStackPointer();
             uint64_t map_offset_units = mmap_ev->getOffsetUnits();
 
-            std::function<void(SimpleMem::Request*)> send_req_func
+            std::function<void(StandardMem::Request*)> send_req_func
                 = std::bind(&VanadisNodeOSCoreHandler::sendMemRequest, this, std::placeholders::_1);
             std::function<void(const uint64_t, std::vector<uint8_t>&)> send_block_func = std::bind(
                 &VanadisNodeOSCoreHandler::sendBlockToMemory, this, std::placeholders::_1, std::placeholders::_2);
@@ -628,12 +637,17 @@ public:
 
             // need to read in the file descriptor so get a memory read in place
             // file descriptor is the 5th argument (each is 4 bytes, so 5 * 4)
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Read, call_stack + 4 * 4, 4));
+            sendMemRequest(new StandardMem::Read(call_stack + 4 * 4, 4));
         } break;
 
         case SYSCALL_OP_SET_THREAD_AREA: {
             VanadisSyscallResponse* resp = new VanadisSyscallResponse();
             core_link->send(resp);
+        } break;
+
+        case SYSCALL_OP_EXIT: {
+            VanadisExitResponse* exit_resp = new VanadisExitResponse();
+            core_link->send(exit_resp);
         } break;
 
         case SYSCALL_OP_EXIT_GROUP: {
@@ -675,7 +689,7 @@ public:
         }
 
         sendMemRequest(
-            new SimpleMem::Request(SimpleMem::Request::Write, start_address, offset_payload.size(), offset_payload));
+            new StandardMem::Write(start_address, offset_payload.size(), offset_payload));
 
         uint64_t remainder = (data_block.size() - prolog_size) % 64;
         uint64_t blocks = (data_block.size() - prolog_size - remainder) / 64;
@@ -690,7 +704,7 @@ public:
                 block_payload.push_back(data_block[prolog_size + (i * 64) + j]);
             }
 
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Write, start_address + prolog_size + (i * 64),
+            sendMemRequest(new StandardMem::Write(start_address + prolog_size + (i * 64),
                                                   block_payload.size(), block_payload));
         }
 
@@ -700,17 +714,15 @@ public:
                 remainder_payload.push_back(data_block[prolog_size + (blocks * 64) + i]);
             }
 
-            sendMemRequest(new SimpleMem::Request(SimpleMem::Request::Write,
-                                                  start_address + prolog_size + (blocks * 64), remainder_payload.size(),
-                                                  remainder_payload));
+            sendMemRequest(new StandardMem::Write(start_address + prolog_size + (blocks * 64), 
+                                                  remainder_payload.size(), remainder_payload));
         }
     }
 
-    void handleIncomingMemory(SimpleMem::Request* ev) {
-        output->verbose(CALL_INFO, 16, 0, "recv memory event (addr: 0x%llx, size: %" PRIu64 ")\n", ev->addr,
-                        (uint64_t)ev->size);
+    void handleIncomingMemory(StandardMem::Request* ev) {
+        output->verbose(CALL_INFO, 16, 0, "recv memory event (%s)\n", ev->getString().c_str());
 
-        auto find_event = pending_mem.find(ev->id);
+        auto find_event = pending_mem.find(ev->getID());
 
         if (find_event != pending_mem.end()) {
             pending_mem.erase(find_event);
@@ -751,16 +763,15 @@ public:
         delete ev;
     }
 
-    void setSendMemoryCallback(std::function<void(SimpleMem::Request*, uint32_t)> callback) {
+    void setSendMemoryCallback(std::function<void(StandardMem::Request*, uint32_t)> callback) {
         output->verbose(CALL_INFO, 16, 0, "set new send memory callback\n");
         sendMemEventCallback = callback;
     }
 
-    void sendMemRequest(SimpleMem::Request* req) {
-        output->verbose(CALL_INFO, 16, 0, "sending request: addr: %" PRIu64 " 0x%0llx / size: %" PRIu64 "\n", req->addr,
-                        req->addr, (uint64_t)req->size);
+    void sendMemRequest(StandardMem::Request* req) {
+        output->verbose(CALL_INFO, 16, 0, "sending request: %s\n", req->getString().c_str());
 
-        pending_mem.insert(req->id);
+        pending_mem.insert(req->getID());
         sendMemEventCallback(req, core_id);
     }
 
@@ -793,11 +804,11 @@ public:
     void setMemoryManager(VanadisMemoryManager* mem_m) { memory_mgr = mem_m; }
 
 protected:
-    std::function<void(SimpleMem::Request*)> handlerSendMemCallback;
-    std::function<void(SimpleMem::Request*, uint32_t)> sendMemEventCallback;
+    std::function<void(StandardMem::Request*)> handlerSendMemCallback;
+    std::function<void(StandardMem::Request*, uint32_t)> sendMemEventCallback;
     std::function<uint64_t()> getSimTimeNano;
 
-    std::unordered_set<SimpleMem::Request::id_t> pending_mem;
+    std::unordered_set<StandardMem::Request::id_t> pending_mem;
     std::unordered_map<uint32_t, VanadisOSFileDescriptor*> file_descriptors;
 
     VanadisMemoryManager* memory_mgr;

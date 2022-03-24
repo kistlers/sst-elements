@@ -17,33 +17,26 @@
 #define _H_VANADIS_INSTRUCTION_DECODE_FAULT
 
 #include "decoder/visaopts.h"
-#include "inst/vinst.h"
+#include "inst/vfault.h"
 #include "inst/vinsttype.h"
 
 namespace SST {
 namespace Vanadis {
 
-class VanadisInstructionDecodeFault : public VanadisInstruction {
+class VanadisInstructionDecodeFault : public VanadisInstructionFault
+{
 public:
-    VanadisInstructionDecodeFault(const uint64_t address, const uint32_t hw_thr, const VanadisDecoderOptions* isa_opts)
-        : VanadisInstruction(address, hw_thr, isa_opts, 0, 0, 0, 0, 0, 0, 0, 0) {
+    VanadisInstructionDecodeFault(
+        const uint64_t address, const uint32_t hw_thr, const VanadisDecoderOptions* isa_opts) :
+        VanadisInstructionFault(address, hw_thr, isa_opts)
+    {}
 
-        trapError = true;
-    }
-
-    virtual VanadisInstruction* clone() {
+    VanadisInstruction* clone() override
+    {
         return new VanadisInstructionDecodeFault(ins_address, hw_thread, isa_options);
     }
 
-    virtual const char* getInstCode() const { return "DECODE_FAULT"; }
-
-    virtual void printToBuffer(char* buffer, size_t buffer_size) {
-        snprintf(buffer, buffer_size, "%s", "DECODE_FAULT");
-    }
-
-    virtual VanadisFunctionalUnitType getInstFuncType() const { return INST_FAULT; }
-
-    virtual void execute(SST::Output* output, VanadisRegisterFile* regFile) {}
+    const char* getInstCode() const override { return "DECODE_FAULT"; }
 };
 
 } // namespace Vanadis

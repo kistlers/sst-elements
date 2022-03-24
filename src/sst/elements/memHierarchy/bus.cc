@@ -87,8 +87,7 @@ bool Bus::clockTick(Cycle_t time) {
 
 void Bus::broadcastEvent(SST::Event* ev) {
     MemEventBase* memEvent = static_cast<MemEventBase*>(ev);
-    LinkId_t srcLinkId = lookupNode(memEvent->getSrc());
-    SST::Link* srcLink = linkIdMap_[srcLinkId];
+    SST::Link* srcLink = lookupNode(memEvent->getSrc());
 
     for (int i = 0; i < numHighNetPorts_; i++) {
         if (highNetPorts_[i] == srcLink) continue;
@@ -109,22 +108,13 @@ void Bus::sendSingleEvent(SST::Event* ev) {
     MemEventBase *event = static_cast<MemEventBase*>(ev);
 #ifdef __SST_DEBUG_OUTPUT__
     if (is_debug_event(event)) {
-        dbg_.debug(_L3_,"\n\n");
-        dbg_.debug(_L3_,"----------------------------------------------------------------------------------------\n");    //raise(SIGINT);
-        dbg_.debug(_L3_,"Incoming Event. Name: %s, Event: %s\n",
-                   this->getName().c_str(), event->getBriefString().c_str());
+        dbg_.debug(_L3_, "E: %-20" PRIu64 " %-20" PRIu64 " %-20s Event:New     (%s)\n",
+                Simulation::getSimulation()->getCurrentSimCycle(), 0, getName().c_str(), event->getVerboseString().c_str());
+        fflush(stdout);
     }
 #endif
-    LinkId_t dstLinkId = lookupNode(event->getDst());
-    SST::Link* dstLink = linkIdMap_[dstLinkId];
+    SST::Link* dstLink = lookupNode(event->getDst());
     MemEventBase* forwardEvent = event->clone();
-#ifdef __SST_DEBUG_OUTPUT__
-    if (is_debug_event(forwardEvent)) {
-        dbg_.debug(_L3_,"BCmd = %s \n", CommandString[(int)forwardEvent->getCmd()]);
-        dbg_.debug(_L3_,"BDst = %s \n", forwardEvent->getDst().c_str());
-        dbg_.debug(_L3_,"BSrc = %s \n", forwardEvent->getSrc().c_str());
-    }
-#endif
     dstLink->send(forwardEvent);
 
     delete event;
@@ -134,18 +124,18 @@ void Bus::sendSingleEvent(SST::Event* ev) {
  * Helper functions
  *---------------------------------------*/
 
-void Bus::mapNodeEntry(const std::string& name, LinkId_t id) {
-	std::map<std::string, LinkId_t>::iterator it = nameMap_.find(name);
-	if (it != nameMap_.end() ) {
-            if (it->second != id)
-                dbg_.fatal(CALL_INFO, -1, "%s, Error: Bus attempting to map node that has already been mapped\n", getName().c_str());
-            return;
-        }
-    nameMap_[name] = id;
+void Bus::mapNodeEntry(const std::string& name, SST::Link* link) {
+    std::map<std::string, SST::Link*>::iterator it = nameMap_.find(name);
+    if (it != nameMap_.end() ) {
+        if (it->second != link)
+            dbg_.fatal(CALL_INFO, -1, "%s, Error: Bus attempting to map node that has already been mapped\n", getName().c_str());
+        return;
+    }
+    nameMap_[name] = link;
 }
 
-LinkId_t Bus::lookupNode(const std::string& name) {
-	std::map<std::string, LinkId_t>::iterator it = nameMap_.find(name);
+SST::Link* Bus::lookupNode(const std::string& name) {
+    std::map<std::string, SST::Link*>::iterator it = nameMap_.find(name);
     if (nameMap_.end() == it) {
         dbg_.fatal(CALL_INFO, -1, "%s, Error: Bus lookup of node %s returned no mapping\n", getName().c_str(), name.c_str());
     }
@@ -161,8 +151,6 @@ void Bus::configureLinks() {
         if (!link)
             dbg_.fatal(CALL_INFO, -1, "%s, Error: unable to configure link on port '%s'\n", getName().c_str(), linkname.c_str());
         highNetPorts_.push_back(link);
-        linkIdMap_[highNetPorts_[numHighNetPorts_]->getId()] = highNetPorts_[numHighNetPorts_];
-        dbg_.output(CALL_INFO, "Port %d = Link %d\n", numHighNetPorts_, highNetPorts_[numHighNetPorts_]->getId());
         numHighNetPorts_++;
         linkname = linkprefix + std::to_string(numHighNetPorts_);
     }
@@ -174,8 +162,6 @@ void Bus::configureLinks() {
         if (!link)
             dbg_.fatal(CALL_INFO, -1, "%s, Error: unable to configure link on port '%s'\n", getName().c_str(), linkname.c_str());
         lowNetPorts_.push_back(link);
-        linkIdMap_[lowNetPorts_[numLowNetPorts_]->getId()] = lowNetPorts_[numLowNetPorts_];
-        dbg_.output(CALL_INFO, "Port %d = Link %d\n", numLowNetPorts_, lowNetPorts_[numLowNetPorts_]->getId());
         numLowNetPorts_++;
         linkname = linkprefix + std::to_string(numLowNetPorts_);
     }
@@ -187,7 +173,7 @@ void Bus::configureLinks() {
 void Bus::configureParameters(SST::Params& params) {
     int debugLevel = params.find<int>("debug_level", 0);
 
-    dbg_.init("--->  ", debugLevel, 0, (Output::output_location_t)params.find<int>("debug", 0));
+    dbg_.init("", debugLevel, 0, (Output::output_location_t)params.find<int>("debug", 0));
     if (debugLevel < 0 || debugLevel > 10)     dbg_.fatal(CALL_INFO, -1, "Debugging level must be between 0 and 10. \n");
 
     std::vector<Addr> addrArr;
@@ -229,7 +215,7 @@ void Bus::init(unsigned int phase) {
 
             if (memEvent && memEvent->getCmd() == Command::NULLCMD) {
                 dbg_.debug(_L10_, "bus %s broadcasting upper event to lower ports (%d): %s\n", getName().c_str(), numLowNetPorts_, memEvent->getVerboseString().c_str());
-                mapNodeEntry(memEvent->getSrc(), highNetPorts_[i]->getId());
+                mapNodeEntry(memEvent->getSrc(), highNetPorts_[i]);
                 for (int k = 0; k < numLowNetPorts_; k++)
                     lowNetPorts_[k]->sendInitData(memEvent->clone());
             } else if (memEvent) {
@@ -247,7 +233,7 @@ void Bus::init(unsigned int phase) {
             if (!memEvent) delete memEvent;
             else if (memEvent->getCmd() == Command::NULLCMD) {
                 dbg_.debug(_L10_, "bus %s broadcasting lower event to upper ports (%d): %s\n", getName().c_str(), numHighNetPorts_, memEvent->getVerboseString().c_str());
-                mapNodeEntry(memEvent->getSrc(), lowNetPorts_[i]->getId());
+                mapNodeEntry(memEvent->getSrc(), lowNetPorts_[i]);
                 for (int i = 0; i < numHighNetPorts_; i++) {
                     highNetPorts_[i]->sendInitData(memEvent->clone());
                 }

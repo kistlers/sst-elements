@@ -38,18 +38,18 @@ l2_prefetch_params = {
 }
 
 ringstop_params = {
-    "torus:shape" : groups * (cores_per_group + memory_controllers_per_group + l3cache_blocks_per_group),
+    "torus.shape" : groups * (cores_per_group + memory_controllers_per_group + l3cache_blocks_per_group),
     "output_latency" : "100ps",
     "xbar_bw" : ring_bandwidth,
     "input_buf_size" : "2KB",
     "input_latency" : "100ps",
     "num_ports" : "3",
     "debug" : "0",
-    "torus:local_ports" : "1",
+    "torus.local_ports" : "1",
     "flit_size" : ring_flit_size,
     "output_buf_size" : "2KB",
     "link_bw" : ring_bandwidth,
-    "torus:width" : "1",
+    "torus.width" : "1",
     "topology" : "merlin.torus"
 }
 
@@ -106,6 +106,8 @@ l3_params = {
 memctrl_params = {
     "backing" : "none",
     "clock" : memory_clock,
+    "interleave_size": str(mem_interleave_size) + "B",
+    "interleave_step": str((groups * memory_controllers_per_group) * mem_interleave_size) + "B",
 }
 memory_params = {
     "access_time" : "30ns",
@@ -240,9 +242,13 @@ for next_group in range(groups):
 
         memctrl = sst.Component("memory_" + str(next_memory_ctrl_id), "memHierarchy.MemController")
         memctrl.addParams(memctrl_params)
+        memctrl.addParams({
+            "addr_range_start" : next_memory_ctrl_id * mem_interleave_size,
+            "addr_range_end" : (memory_capacity * 1024 * 1024) - (groups * memory_controllers_per_group * mem_interleave_size) + (next_memory_ctrl_id * mem_interleave_size)
+        })
         memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
         memory.addParams(memory_params)
-
+            
         dc = sst.Component("dc_" + str(next_memory_ctrl_id), "memHierarchy.DirectoryController")
         dc.addParams({
             "addr_range_start" : next_memory_ctrl_id * mem_interleave_size,

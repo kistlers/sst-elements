@@ -40,7 +40,7 @@ public:
     static const uint32_t F_LOCKED          = 0x00000001;
     static const uint32_t F_NONCACHEABLE    = 0x00000010;
     static const uint32_t F_LLSC            = 0x00000100;
-    static const uint32_t F_SUCCESS         = 0x00001000;
+    static const uint32_t F_FAIL            = 0x00001000;
     static const uint32_t F_NORESPONSE      = 0x00010000;
 
 
@@ -150,9 +150,9 @@ public:
             str += "F_LLSC";
             addComma = true;
         }
-        if (flags_ & F_SUCCESS) {
+        if (flags_ & F_FAIL) {
             if (addComma) str += ", ";
-            str += "F_SUCCESS";
+            str += "F_FAIL";
             addComma = true;
         }
         if (flags_ & F_NORESPONSE) {
@@ -167,8 +167,8 @@ public:
     /** Return size of the event - for calculating bandwidth used */
     virtual uint32_t getEventSize() { return 0; }
 
-    /** Get verbose print of the event */
-    virtual std::string getVerboseString() {
+    /** Get verbose print of the event */ 
+    virtual std::string getVerboseString(int level = 1) {
         std::ostringstream idstring;
         idstring << "<" << eventID_.first << "," << eventID_.second << "> ";
         std::string cmdStr(CommandString[(int)cmd_]);
@@ -242,7 +242,7 @@ struct memEventCmp {
 class MemEventInit : public MemEventBase  {
 public:
 
-    enum class InitCommand { Region, Data, Coherence };
+    enum class InitCommand { Region, Data, Coherence, Endpoint };
 
     /* Init event */
     MemEventInit(std::string src, InitCommand cmd) : MemEventBase(src, Command::NULLCMD), initCmd_(cmd) { }
@@ -261,14 +261,15 @@ public:
         return new MemEventInit(*this);
     }
 
-    virtual std::string getVerboseString() override {
+    virtual std::string getVerboseString(int level = 1) override {
         std::string str;
         if (initCmd_ == InitCommand::Region) str = " InitCmd: Region";
         else if (initCmd_ == InitCommand::Data) str = " InitCmd: Data";
         else if (initCmd_ == InitCommand::Coherence) str = " InitCmd: Coherence";
+        else if (initCmd_ == InitCommand::Endpoint) str = " InitCmd: Endpoint";
         else str = " InitCmd: Unknown command";
 
-        return MemEventBase::getVerboseString() + str;
+        return MemEventBase::getVerboseString(level) + str;
     }
 
     virtual std::string getBriefString() override {
@@ -276,6 +277,7 @@ public:
         if (initCmd_ == InitCommand::Region) str = " InitCmd: Region";
         else if (initCmd_ == InitCommand::Data) str = " InitCmd: Data";
         else if (initCmd_ == InitCommand::Coherence) str = " InitCmd: Coherence";
+        else if (initCmd_ == InitCommand::Endpoint) str = " InitCmd: Endpoint";
         else str = " InitCmd: Unknown command";
 
         return MemEventBase::getBriefString() + str;
@@ -314,7 +316,6 @@ public:
      * recvWBAck: the component expects to receive WB Acks (if false, the component *can* expect to receive them if another component sends them)
      * lineSize: number of bytes in a line
      * tracksPresence: whether the component keeps track of whether a line is present elsewhere. Affects whether clean evictions need to happen or not.
-     *
      */
     MemEventInitCoherence(std::string src, Endpoint type, bool inclusive, bool sendWBAck, Addr lineSize, bool tracksPresence) :
         MemEventInit(src, InitCommand::Coherence), type_(type), inclusive_(inclusive), sendWBAck_(sendWBAck), recvWBAck_(false), lineSize_(lineSize), tracksPresence_(tracksPresence) { }
@@ -332,11 +333,11 @@ public:
         return new MemEventInitCoherence(*this);
     }
 
-    virtual std::string getVerboseString() override {
+    virtual std::string getVerboseString(int level = 1) override {
         std::ostringstream str;
         str << " Type: " << (int) type_ << " Inclusive: " << (inclusive_ ? "true" : "false");
         str << " LineSize: " << lineSize_ << " Tracks presence: " << (tracksPresence_ ? "true" : "false");
-        return MemEventInit::getVerboseString() + str.str();
+        return MemEventInit::getVerboseString(level) + str.str();
     }
 
 private:
@@ -363,6 +364,66 @@ public:
     ImplementSerializable(SST::MemHierarchy::MemEventInitCoherence);
 };
 
+class MemEventInitEndpoint : public MemEventInit {
+public:
+    /* Init events for coordinating between endpoint interfaces */
+    /*
+     * type: endpoint type (CPU, MMIO, etc.)
+     * name: endpoint name
+     * noncacheableRegions: regions that this endpoint is declaring noncacheable
+     * 
+     * TODO: Possibliy merge this with the coherence init messages and broadcast all topology info everywhere
+     */
+    
+    MemEventInitEndpoint(std::string src, Endpoint type, MemRegion region, bool cacheable) : 
+        MemEventInit(src, InitCommand::Endpoint), type_(type), name_(src)  {
+        regions_.push_back(std::make_pair(region, cacheable));
+    }
+
+    Endpoint getType() { return type_; }
+    std::string getName() { return name_; }
+    std::vector<std::pair<MemRegion,bool>> getRegions() { return regions_; }
+    void addRegion(MemRegion reg, bool cacheable) { regions_.push_back(std::make_pair(reg, cacheable)); }
+
+    virtual MemEventInitEndpoint* clone(void) override {
+        MemEventInitEndpoint* ep = new MemEventInitEndpoint(*this);
+        ep->regions_ = this->regions_;
+        return ep;
+    }
+
+    virtual std::string getBriefString() override {
+        std::ostringstream str;
+        str << " Type: " << (int) type_ << " Name: " << name_;
+        return MemEventInit::getBriefString() + str.str();
+    }
+
+    virtual std::string getVerboseString(int level = 1) override {
+        std::ostringstream str;
+        str << " Type: " << (int) type_ << " Name: " << name_;
+        str << " Regions:";
+        for (std::vector<std::pair<MemRegion,bool>>::iterator it = regions_.begin(); it != regions_.end(); it++) {
+            str << " [" << it->first.toString() << "; " << (it->second ? "cacheable" : "noncacheable") << "]";
+        }
+        return MemEventInit::getBriefString() + str.str();
+    }
+
+private:
+    Endpoint type_;
+    std::string name_;
+    std::vector<std::pair<MemRegion,bool>> regions_; // List of address regions accessible and whether they are cacheable or not
+
+    MemEventInitEndpoint() {}
+public:
+    void serialize_order(SST::Core::Serialization::serializer &ser) override {
+        MemEventInit::serialize_order(ser);
+        ser & type_;
+        ser & name_;
+        ser & regions_;
+    }
+
+    ImplementSerializable(SST::MemHierarchy::MemEventInitEndpoint);
+};
+
 class MemEventInitRegion : public MemEventInit {
 public:
     MemEventInitRegion(std::string src, MemRegion region, bool setRegion) :
@@ -376,8 +437,8 @@ public:
         return new MemEventInitRegion(*this);
     }
 
-    virtual std::string getVerboseString() override {
-        return MemEventInit::getVerboseString() + region_.toString() + " SetRegion: " + (setRegion_ ? "T" : "F");
+    virtual std::string getVerboseString(int level = 1) override {
+        return MemEventInit::getVerboseString(level) + region_.toString() + " SetRegion: " + (setRegion_ ? "T" : "F");
     }
 
 private:

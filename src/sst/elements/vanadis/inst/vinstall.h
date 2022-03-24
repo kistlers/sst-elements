@@ -20,7 +20,9 @@
 #include "inst/vadd.h"
 #include "inst/vaddi.h"
 #include "inst/vaddiu.h"
+#include "inst/vdiv.h"
 #include "inst/vdivmod.h"
+#include "inst/vmod.h"
 #include "inst/vmul.h"
 #include "inst/vmuli.h"
 #include "inst/vmulsplit.h"
@@ -49,6 +51,9 @@
 #include "inst/vscmp.h"
 #include "inst/vscmpi.h"
 
+// PC
+#include "inst/vpcaddi.h"
+
 // Jumps and PC change instructions
 #include "inst/vbcmp.h"
 #include "inst/vbfp.h"
@@ -64,15 +69,21 @@
 // Store instructions
 #include "inst/vpartialstore.h"
 #include "inst/vstore.h"
+#include "inst/vstorecond.h"
 
 // Fence Instructions
 #include "inst/vfence.h"
 
 // Special instructions
+#include "inst/vdecodealignfault.h"
 #include "inst/vdecodefaultinst.h"
+#include "inst/vfault.h"
 #include "inst/vnop.h"
 #include "inst/vsetreg.h"
 #include "inst/vsyscall.h"
+
+// int-reg move
+#include "inst/vmovci.h"
 
 // FP Convert/Move
 #include "inst/vfp2fp.h"
@@ -85,9 +96,16 @@
 #include "inst/vfpdiv.h"
 #include "inst/vfpmul.h"
 #include "inst/vfpscmp.h"
+#include "inst/vfpsignlogic.h"
 #include "inst/vfpsub.h"
+#include "inst/vmipsfpscmp.h"
 
 // Truncate
 #include "inst/vtrunc.h"
+
+// FP Flags
+#include "inst/vfpflagssetimm.h"
+#include "inst/vfpflagsset.h"
+#include "inst/vfpflagsread.h"
 
 #endif

@@ -23,6 +23,8 @@
 #include <sst/core/component.h>
 #include <sst/core/params.h>
 #include <sst/core/output.h>
+#include <sst/core/interfaces/stdMem.h>
+
 #include "sst/elements/memHierarchy/membackend/memBackend.h"
 
 #include <list>
@@ -118,8 +120,8 @@ public:
 
     SST_ELI_DOCUMENT_PARAMS( MEMBACKEND_ELI_PARAMS,
             /* Own parameters */
-            { "verbose",	"Sets the verbosity of the backend output", "0" },
-            { "device_count",	"Sets the number of HMCs being simulated, default=1, max=8", "1" },
+        { "verbose",	    "Sets the verbosity of the backend output", "0" },
+        { "device_count",	"Sets the number of HMCs being simulated, default=1, max=8", "1" },
 	    { "link_count", 	"Sets the number of links being simulated, min=4, max=8, default=4", "4" },
 	    { "vault_count",	"Sets the number of vaults being simulated, min=16, max=32, default=16", "16" },
 	    { "queue_depth",	"Sets the depth of the HMC request queue, min=2, max=65536, default=2", "2" },
@@ -129,18 +131,18 @@ public:
 #ifdef HMC_DEV_DRAM_LATENCY
             { "dram_latency",   "Sets the internal DRAM fetch latency in clock cycles", "2" },
 #endif
-	    { "trace-banks", 	"Decides where tracing for memory banks is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
-	    { "trace-queue", 	"Decides where tracing for queues is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
-	    { "trace-cmds", 	"Decides where tracing for commands is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
-	    { "trace-latency", 	"Decides where tracing for latency is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
-	    { "trace-stalls", 	"Decides where tracing for memory stalls is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+	    { "trace_banks", 	"Decides where tracing for memory banks is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+	    { "trace_queue", 	"Decides where tracing for queues is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+	    { "trace_cmds", 	"Decides where tracing for commands is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+	    { "trace_latency", 	"Decides where tracing for latency is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+	    { "trace_stalls", 	"Decides where tracing for memory stalls is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
 #ifdef HMC_TRACE_POWER
-            { "trace-power",    "Decides where tracing for memory power is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
+        { "trace_power",    "Decides where tracing for memory power is enabled, \"yes\" or \"no\", default=\"no\"", "no" },
 #endif
-	    { "tag_count",	        "Sets the number of inflight tags that can be pending at any point in time", "16" },
-	    { "capacity_per_device",    "Sets the capacity of the device being simulated in GiB, min=2, max=8, default is 4", "4" },
-            { "cmc-config",             "Enables a CMC library command in HMCSim", "NONE" },
-            { "cmd-map",                "Maps an existing HMC or CMC command to the target command type", "NONE" }  )
+	    { "tag_count",	         "Sets the number of inflight tags that can be pending at any point in time", "16" },
+	    { "capacity_per_device", "Sets the capacity of the device being simulated in GiB, min=2, max=8, default is 4", "4" },
+        { "cmd_config",          "Enables a CMC library command in HMCSim", "NONE" },
+        { "cmd_map",             "Maps an existing HMC or CMC command to the target command type", "NONE" }  )
 
     SST_ELI_DOCUMENT_STATISTICS(
         {"WR16",            "Operation count for HMC WR16",       "count", 1},
@@ -232,9 +234,7 @@ public:
 	bool issueRequest(ReqId, Addr, bool,
                           std::vector<uint64_t>,
                           uint32_t, unsigned);
-	bool issueCustomRequest(ReqId, Addr, uint32_t,
-                                std::vector<uint64_t>,
-                                uint32_t, unsigned);
+	bool issueCustomRequest(ReqId, Interfaces::StandardMem::CustomData*);
 	void setup();
 	void finish();
 	virtual bool clock(Cycle_t cycle);

@@ -18,7 +18,7 @@ comp_cpu.addParams({
       "memSize" : "524288"
 })
 
-iface = comp_cpu.setSubComponent("memory", "memHierarchy.memInterface")
+iface = comp_cpu.setSubComponent("memory", "memHierarchy.standardInterface")
 
 comp_l1cache = sst.Component("l1cache", "memHierarchy.Cache")
 comp_l1cache.addParams({
@@ -39,7 +39,8 @@ comp_l1cache.enableAllStatistics({"type":"sst.AccumulatorStatistic"})
 
 comp_memory = sst.Component("memory", "memHierarchy.MemController")
 comp_memory.addParams({
-      "clock" : "1GHz"
+      "clock" : "1GHz",
+      "addr_range_start" : 0
 })
 backend = comp_memory.setSubComponent("backend", "memHierarchy.simpleMem")
 backend.addParams({
